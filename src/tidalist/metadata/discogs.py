@@ -6,6 +6,8 @@ release supplies edition-grade facts (album, year, live-or-not, release artists)
 `recordings_for` discovers; it does not select.
 """
 
+import itertools
+
 from ..core.recording import Candidate, Credit, Recording, Performance
 from .rate_limit import MinInterval
 
@@ -46,12 +48,16 @@ def _year(result) -> int | None:
 class DiscogsMetadata:
     """MetadataProvider port backed by a discogs_client.Client."""
 
-    def __init__(self, client, *, limiter=None, rate_limit: int = 60):
+    def __init__(self, client, *, limiter=None, rate_limit: int = 60, limit: int = 25):
         self._client = client
         self._limiter = limiter or MinInterval(rate_limit)
+        self._limit = limit
 
     def recordings_for(self, candidate: Candidate) -> list[Recording]:
+        # search() is a lazily-paginated list; islice stops at the first `limit` hits so
+        # we fetch only one page, not walk (and rate-limit-stall on) every page.
         self._limiter.wait()
         query = f"{candidate.artist} {candidate.title}"
+        results = self._client.search(query, type="release")
         return [recording_from_discogs(r, candidate)
-                for r in self._client.search(query, type="release")]
+                for r in itertools.islice(results, self._limit)]

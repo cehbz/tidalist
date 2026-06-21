@@ -81,6 +81,25 @@ def test_recordings_for_empty_when_no_results():
     assert DiscogsMetadata(_FakeClient([])).recordings_for(Candidate("X", "Y")) == []
 
 
+def test_recordings_for_bounds_results_and_does_not_walk_every_page():
+    # A real discogs_client search is a lazily-paginated list; recordings_for must stop
+    # at the limit, not iterate (and page-fetch) the entire result set.
+    consumed = []
+
+    def lazy_pages():
+        for i in range(1000):
+            consumed.append(i)
+            yield _result(year=2000 + (i % 50))
+
+    class _LazyClient:
+        def search(self, query, type=None):
+            return lazy_pages()
+
+    recs = DiscogsMetadata(_LazyClient(), limit=5).recordings_for(Candidate("X", "Y"))
+    assert len(recs) == 5
+    assert len(consumed) == 5
+
+
 def test_recordings_for_waits_on_the_limiter():
     calls = []
 
