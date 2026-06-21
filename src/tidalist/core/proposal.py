@@ -5,12 +5,9 @@ from dataclasses import dataclass
 from .recording import Candidate, Recording
 from .catalog import Track
 from .criteria import Verdict
+from .provenance import Provenance  # re-exported: legacy import site `from .proposal import Provenance`
 
-
-@dataclass(frozen=True, slots=True)
-class Provenance:
-    source: str        # "scaruffi" | "nl"
-    note: str = ""
+__all__ = ["Provenance", "Proposal"]
 
 
 @dataclass(frozen=True, slots=True)

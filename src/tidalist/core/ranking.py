@@ -10,8 +10,25 @@ from .catalog import Edition, Track
 @runtime_checkable
 class Ranking(Protocol):
     def key(self, recording: Recording | None, track: Track) -> tuple:
-        """Sort key; lower first."""
+        """Edition/realize sort key over a resolved track; lower first."""
         ...
+
+
+@runtime_checkable
+class RecordingRanking(Protocol):
+    def key(self, recording: Recording) -> tuple:
+        """Golden-stage sort key over a recording alone (no track); lower first."""
+        ...
+
+
+@dataclass(frozen=True, slots=True)
+class PreferStudioEarliest:
+    """Golden recording-ranking: prefer studio over live, then earliest release."""
+
+    def key(self, recording: Recording) -> tuple:
+        live = 1 if recording.is_live() else 0
+        year = recording.first_released if recording.first_released is not None else 9999
+        return (live, year)
 
 
 # Lower sorts first.

@@ -38,10 +38,10 @@ class FakeCatalog:
 
 
 class FakeMetadataProvider:
-    def __init__(self, recordings: dict[str, Recording]):
-        # keyed by candidate title (case-insensitive)
-        self._by_title = {k.casefold(): v for k, v in recordings.items()}
+    def __init__(self, recordings: dict[str, Recording | list[Recording]]):
+        # keyed by candidate title (case-insensitive); value is a Recording or a list.
+        self._by_title = {k.casefold(): (list(v) if isinstance(v, list) else [v])
+                          for k, v in recordings.items()}
 
     def recordings_for(self, candidate: Candidate) -> list[Recording]:
-        rec = self._by_title.get(candidate.title.casefold())
-        return [rec] if rec is not None else []
+        return list(self._by_title.get(candidate.title.casefold(), []))

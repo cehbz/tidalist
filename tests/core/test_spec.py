@@ -9,7 +9,8 @@ from tidalist.core.criteria import PerformedBy, Studio, Verdict
 from tidalist.core.ranking import PreferOriginal
 from tidalist.core.brief import Brief
 from tidalist.core.proposal import Proposal, Provenance
-from tidalist.core.spec import to_spec, from_spec
+from tidalist.core.golden import GoldenPlaylist, GoldenEntry
+from tidalist.core.spec import to_spec, from_spec, to_golden, from_golden
 
 
 def _example():
@@ -52,3 +53,36 @@ def test_unknown_criterion_type_raises():
            "ranking": {"type": "prefer_original"}, "proposals": []}
     with pytest.raises(ValueError):
         from_spec(bad)
+
+
+# --- golden artifact ---------------------------------------------------------
+
+def _golden():
+    brief = Brief("Winwood", (PerformedBy("Steve Winwood"), Studio()), PreferOriginal())
+    admitted = GoldenEntry(
+        Recording(artist="Traffic", title="Glad", mbid=MBID("rec-1"),
+                  isrc=ISRC("GBABC1234567"), album="John Barleycorn Must Die",
+                  first_released=1970, duration_s=386, performance=Performance.STUDIO,
+                  credits=(Credit("Steve Winwood", "performer"),)),
+        Provenance("nl", "signature track"), Verdict.ok())
+    gap = GoldenEntry(Recording(artist="Nobody", title="Nothing"),
+                      Provenance("nl"), Verdict.rejected("no recording found"))
+    return GoldenPlaylist("Winwood", brief, (admitted, gap))
+
+
+def test_golden_round_trips():
+    golden = _golden()
+    assert from_golden(to_golden(golden)) == golden
+
+
+def test_golden_is_pure_json():
+    spec = to_golden(_golden())
+    assert json.loads(json.dumps(spec)) == spec
+
+
+def test_golden_entry_flattens_recording_fields_with_year_key():
+    entry = to_golden(_golden())["entries"][0]
+    assert entry["mbid"] == "rec-1" and entry["year"] == 1970
+    assert entry["artist"] == "Traffic" and entry["title"] == "Glad"
+    assert entry["provenance"]["note"] == "signature track"
+    assert entry["verdict"]["admitted"] is True

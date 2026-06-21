@@ -1,6 +1,6 @@
 from tidalist.core.recording import Performance, Credit, Recording
 from tidalist.core.catalog import Edition, Track
-from tidalist.core.ranking import PreferOriginal
+from tidalist.core.ranking import PreferOriginal, PreferStudioEarliest
 
 
 def _rec(performance, year):
@@ -44,3 +44,20 @@ def test_key_tolerates_missing_recording():
     r = PreferOriginal()
     k = r.key(None, _track(year=1970))
     assert isinstance(k, tuple)
+
+
+# --- PreferStudioEarliest: the golden recording-ranking (no Track) ---
+
+def test_recording_ranking_prefers_studio_over_live():
+    r = PreferStudioEarliest()
+    assert r.key(_rec(Performance.STUDIO, 1975)) < r.key(_rec(Performance.LIVE, 1970))
+
+
+def test_recording_ranking_prefers_earliest_among_studio():
+    r = PreferStudioEarliest()
+    assert r.key(_rec(Performance.STUDIO, 1970)) < r.key(_rec(Performance.STUDIO, 1985))
+
+
+def test_recording_ranking_sorts_unknown_year_last():
+    r = PreferStudioEarliest()
+    assert r.key(_rec(Performance.STUDIO, 1970)) < r.key(_rec(Performance.STUDIO, None))
