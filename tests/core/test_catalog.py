@@ -1,6 +1,6 @@
 import pytest
 
-from tidalist.core.catalog import Edition, Track, Album
+from tidalist.core.catalog import Edition, Track
 
 
 def test_primary_artist_is_first():
@@ -23,8 +23,3 @@ def test_track_requires_at_least_one_artist():
 def test_track_edition_defaults_to_unknown():
     t = Track(id="1", title="Glad", artists=("Traffic",))
     assert t.edition is Edition.UNKNOWN
-
-
-def test_album_holds_metadata():
-    a = Album(id="9", title="John Barleycorn Must Die", artists=("Traffic",), year=1970)
-    assert a.year == 1970

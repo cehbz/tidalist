@@ -1,4 +1,4 @@
-"""Catalog value objects: a playable Track and its Album."""
+"""Catalog value objects: a playable Track."""
 
 from dataclasses import dataclass
 from enum import StrEnum
@@ -38,10 +38,3 @@ class Track:
     def primary_artist(self) -> str:
         return self.artists[0]
 
-
-@dataclass(frozen=True, slots=True)
-class Album:
-    id: str
-    title: str
-    artists: tuple[str, ...]
-    year: int | None = None
