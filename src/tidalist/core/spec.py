@@ -6,6 +6,7 @@ known rule types, we validate by tag, and we never eval model output.
 
 from .identifiers import ISRC, MBID
 from .recording import Candidate, Credit, Recording, Performance, Kind
+from .album import Album
 from .criteria import PerformedBy, Studio, Criterion, Verdict
 from .brief import Brief
 from .provenance import Provenance
@@ -70,27 +71,40 @@ def _mbid(value):
 # --- golden artifact (the durable, portable product) -------------------------
 
 def _golden_entry_to_dict(e: GoldenEntry) -> dict:
+    prov_verdict = {
+        "provenance": _provenance_to_dict(e.provenance),
+        "verdict": _verdict_to_dict(e.verdict),
+    }
+    if isinstance(e.item, Album):
+        a = e.item
+        return {"kind": "album", "mbid": a.mbid, "artist": a.artist,
+                "title": a.title, "year": a.first_released, **prov_verdict}
     r = e.item
     return {
+        "kind": "track",
         "mbid": r.mbid, "isrc": r.isrc, "artist": r.artist, "title": r.title,
         "album": r.album, "year": r.first_released, "duration_s": r.duration_s,
         "performance": r.performance.value,
         "credits": [{"artist": c.artist, "role": c.role} for c in r.credits],
-        "provenance": _provenance_to_dict(e.provenance),
-        "verdict": _verdict_to_dict(e.verdict),
+        **prov_verdict,
     }
 
 
 def _golden_entry_from_dict(d: dict) -> GoldenEntry:
-    rec = Recording(
-        artist=d["artist"], title=d["title"], mbid=_mbid(d.get("mbid")),
-        isrc=_isrc(d.get("isrc")), album=d.get("album"),
-        first_released=d.get("year"), duration_s=d.get("duration_s"),
-        performance=Performance(d["performance"]),
-        credits=tuple(Credit(c["artist"], c["role"]) for c in d.get("credits", [])))
     prov, v = d["provenance"], d["verdict"]
-    return GoldenEntry(rec, Provenance(prov["source"], prov.get("note", "")),
-                       Verdict(v["admitted"], tuple(v.get("violations", []))))
+    provenance = Provenance(prov["source"], prov.get("note", ""))
+    verdict = Verdict(v["admitted"], tuple(v.get("violations", [])))
+    if d.get("kind", "track") == "album":
+        item = Album(artist=d["artist"], title=d["title"],
+                     mbid=_mbid(d.get("mbid")), first_released=d.get("year"))
+    else:
+        item = Recording(
+            artist=d["artist"], title=d["title"], mbid=_mbid(d.get("mbid")),
+            isrc=_isrc(d.get("isrc")), album=d.get("album"),
+            first_released=d.get("year"), duration_s=d.get("duration_s"),
+            performance=Performance(d["performance"]),
+            credits=tuple(Credit(c["artist"], c["role"]) for c in d.get("credits", [])))
+    return GoldenEntry(item, provenance, verdict)
 
 
 def to_golden(golden: GoldenPlaylist) -> dict:

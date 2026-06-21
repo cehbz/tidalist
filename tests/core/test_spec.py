@@ -4,6 +4,7 @@ import pytest
 
 from tidalist.core.identifiers import ISRC, MBID
 from tidalist.core.recording import Candidate, Credit, Recording, Performance, Kind
+from tidalist.core.album import Album
 from tidalist.core.criteria import PerformedBy, Studio, Verdict
 from tidalist.core.brief import Brief
 from tidalist.core.provenance import Provenance
@@ -86,6 +87,21 @@ def test_from_intent_source_defaults_to_nl_and_is_overridable():
             "candidates": [{"artist": "A", "title": "T"}]}
     assert from_intent(data)[1][0].source == "nl"
     assert from_intent(data, source="scaruffi")[1][0].source == "scaruffi"
+
+
+def test_golden_round_trips_album_and_track_entries():
+    brief = Brief("Winwood", ())
+    track = GoldenEntry(Recording(artist="Traffic", title="Glad", mbid=MBID("r1"),
+                                  first_released=1970, performance=Performance.STUDIO),
+                        Provenance("nl"), Verdict.ok())
+    album = GoldenEntry(Album(artist="Traffic", title="John Barleycorn Must Die",
+                              mbid=MBID("rg1"), first_released=1970),
+                        Provenance("nl", "whole album"), Verdict.ok())
+    g = GoldenPlaylist("Winwood", brief, (track, album))
+    assert from_golden(to_golden(g)) == g
+    dicts = to_golden(g)["entries"]
+    assert dicts[0]["kind"] == "track" and dicts[1]["kind"] == "album"
+    assert dicts[1]["mbid"] == "rg1"
 
 
 def test_intent_round_trips_candidate_kind():
