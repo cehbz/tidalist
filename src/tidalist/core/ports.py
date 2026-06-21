@@ -2,6 +2,7 @@
 
 from typing import Protocol, runtime_checkable
 
+from .album import Album
 from .identifiers import ISRC, TrackId, PlaylistId
 from .catalog import Track
 from .recording import Candidate, Recording
@@ -18,3 +19,4 @@ class Catalog(Protocol):
 @runtime_checkable
 class MetadataProvider(Protocol):
     def recordings_for(self, candidate: Candidate) -> list[Recording]: ...
+    def albums_for(self, candidate: Candidate) -> list[Album]: ...

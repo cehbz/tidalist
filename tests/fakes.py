@@ -4,6 +4,7 @@ These are real (deterministic) implementations, not mocks — tests specify beha
 against them, not against call expectations.
 """
 
+from tidalist.core.album import Album
 from tidalist.core.identifiers import PlaylistId
 from tidalist.core.catalog import Track
 from tidalist.core.recording import Candidate, Recording
@@ -38,13 +39,21 @@ class FakeCatalog:
 
 
 class FakeMetadataProvider:
-    def __init__(self, recordings: dict[str, Recording | list[Recording]]):
-        # keyed by candidate title (case-insensitive); value is a Recording or a list.
-        self._by_title = {k.casefold(): (list(v) if isinstance(v, list) else [v])
-                          for k, v in recordings.items()}
+    def __init__(self, recordings: dict[str, Recording | list[Recording]] | None = None,
+                 albums: dict[str, Album | list[Album]] | None = None):
+        # keyed by candidate title (case-insensitive); value is a Recording/Album or a list.
+        recordings = recordings or {}
+        albums = albums or {}
+        self._recordings_by_title = {k.casefold(): (list(v) if isinstance(v, list) else [v])
+                                     for k, v in recordings.items()}
+        self._albums_by_title = {k.casefold(): (list(v) if isinstance(v, list) else [v])
+                                 for k, v in albums.items()}
 
     def recordings_for(self, candidate: Candidate) -> list[Recording]:
-        return list(self._by_title.get(candidate.title.casefold(), []))
+        return list(self._recordings_by_title.get(candidate.title.casefold(), []))
+
+    def albums_for(self, candidate: Candidate) -> list[Album]:
+        return list(self._albums_by_title.get(candidate.title.casefold(), []))
 
 
 class FakeRealizer:
