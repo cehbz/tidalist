@@ -4,7 +4,6 @@ from tidalist.core.recording import Recording
 from tidalist.core.criteria import Verdict
 from tidalist.core.provenance import Provenance
 from tidalist.core.brief import Brief
-from tidalist.core.ranking import PreferOriginal
 from tidalist.core.golden import GoldenEntry, GoldenPlaylist
 from tidalist.core.realize import realize, publish, Realization, PlatformItem, MatchQuality
 from tidalist.core.errors import CatalogError
@@ -33,7 +32,7 @@ def _entry(title, admitted=True):
 
 
 def _golden(*entries, name="Winwood"):
-    return GoldenPlaylist(name, Brief(name, (), PreferOriginal()), tuple(entries))
+    return GoldenPlaylist(name, Brief(name, ()), tuple(entries))
 
 
 def _item(ref="t1", title="Glad"):

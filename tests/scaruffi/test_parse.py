@@ -1,5 +1,4 @@
 from tidalist.core.recording import Candidate
-from tidalist.core.ranking import PreferOriginal
 from tidalist.scaruffi.parse import parse_scaruffi
 
 
@@ -79,12 +78,11 @@ def test_multiple_entries_yield_multiple_candidates_in_order():
     assert len(provenances) == 2
 
 
-def test_brief_is_named_with_default_ranking_and_no_hard_criteria():
+def test_brief_is_named_with_no_hard_criteria():
     _, _, brief = parse_scaruffi(_page("Bach: x", "Recommended recording: Y (1997)"),
                                  name="Scaruffi Picks")
     assert brief.name == "Scaruffi Picks"
     assert brief.criteria == ()
-    assert isinstance(brief.ranking, PreferOriginal)
 
 
 def test_empty_or_tableless_html_yields_nothing():

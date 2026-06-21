@@ -1,7 +1,5 @@
 from tidalist.core.recording import Performance, Credit, Recording
-from tidalist.core.catalog import Edition, Track
 from tidalist.core.criteria import PerformedBy, Studio
-from tidalist.core.ranking import PreferOriginal
 from tidalist.core.brief import Brief
 
 
@@ -11,7 +9,7 @@ def _rec(performance=Performance.STUDIO, artist="Steve Winwood"):
 
 
 def _brief(*criteria):
-    return Brief("p", tuple(criteria), PreferOriginal())
+    return Brief("p", tuple(criteria))
 
 
 def test_admits_when_all_criteria_pass():
@@ -28,10 +26,3 @@ def test_rejects_and_accumulates_violations():
 
 def test_no_criteria_admits_everything():
     assert _brief().judge(_rec(performance=Performance.LIVE)).admitted is True
-
-
-def test_rank_key_delegates_to_ranking():
-    brief = _brief()
-    track = Track(id="1", title="t", artists=("a",), edition=Edition.ORIGINAL, year=1970)
-    rec = _rec()
-    assert brief.rank_key(rec, track) == PreferOriginal().key(rec, track)

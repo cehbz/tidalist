@@ -2,7 +2,6 @@ import pytest
 
 from tidalist.core.recording import Candidate, Credit, Recording, Performance
 from tidalist.core.criteria import PerformedBy, Studio
-from tidalist.core.ranking import PreferOriginal
 from tidalist.core.brief import Brief
 from tidalist.core.provenance import Provenance
 from tidalist.core.golden import Curator, GoldenPlaylist, GoldenEntry
@@ -16,7 +15,7 @@ def _rec(title="Glad", artist="Traffic", performer="Steve Winwood",
 
 
 def _brief(*criteria):
-    return Brief("Winwood", tuple(criteria), PreferOriginal())
+    return Brief("Winwood", tuple(criteria))
 
 
 def _curate(meta_map, brief, candidates, provenances=None):

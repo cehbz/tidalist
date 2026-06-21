@@ -76,8 +76,7 @@ The hand-off a front-end (an agent, or `tidalist scaruffi`) produces:
 {
   "name": "Steve Winwood — essentials",
   "brief": {
-    "criteria": [{"type": "performed_by", "artist": "Steve Winwood"}],
-    "ranking": {"type": "prefer_original"}
+    "criteria": [{"type": "performed_by", "artist": "Steve Winwood"}]
   },
   "candidates": [
     {"artist": "Traffic", "title": "John Barleycorn Must Die",
@@ -86,8 +85,8 @@ The hand-off a front-end (an agent, or `tidalist scaruffi`) produces:
 }
 ```
 
-`criteria` and `ranking` are a closed, validated tag union — model output is never
-eval'd. Each `note` becomes that entry's provenance rationale.
+`criteria` are a closed, validated tag union — model output is never eval'd. Each
+`note` becomes that entry's provenance rationale.
 
 ## Architecture
 

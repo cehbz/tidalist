@@ -13,7 +13,6 @@ from bs4 import BeautifulSoup
 from ..core.recording import Candidate
 from ..core.provenance import Provenance
 from ..core.brief import Brief
-from ..core.ranking import PreferOriginal
 
 
 def parse_scaruffi(html: str, *, name: str = "Scaruffi Classical"
@@ -30,7 +29,7 @@ def parse_scaruffi(html: str, *, name: str = "Scaruffi Classical"
         if alternates:
             note += f" (also {', '.join(alternates)})"
         provenances.append(Provenance("scaruffi", note))
-    return candidates, provenances, Brief(name, (), PreferOriginal())
+    return candidates, provenances, Brief(name, ())
 
 
 def _entries(html: str):

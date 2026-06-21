@@ -61,8 +61,7 @@ The durable product; portable across realizers.
 ```json
 {
   "name": "Steve Winwood — essentials",
-  "brief": {"criteria": [{"type": "performed_by", "artist": "Steve Winwood"}],
-             "ranking": {"type": "prefer_original"}},
+  "brief": {"criteria": [{"type": "performed_by", "artist": "Steve Winwood"}]},
   "entries": [
     {"mbid": "…", "isrc": "GB…", "artist": "Traffic", "title": "John Barleycorn",
      "album": "John Barleycorn Must Die", "year": 1970, "duration_s": 386,
@@ -110,7 +109,9 @@ Phases 1-4 committed (last commit `c3d6e5c`). **Phase A done, offline-green (151
 
 **Phase F skipped (YAGNI, by decision):** the `Realizer` port is ready; Spotify/local realizers are built on demand — none wanted now.
 
-**Phase G done, offline-green (162 passed):** deleted all remaining legacy (`domain/`, `application/`, `infrastructure/`) and its tests; moved the Scaruffi sample to `examples/classical.html`; finalized packaging — `pyproject` name `tidalist`, src-layout `packages.find` (`where=["src"]`), `tidalist` console script (`tidalist.cli:main`), `requires-python >=3.11` (StrEnum is the real floor, plan's `>=3.9` was wrong), dropped unused `lxml`; rewrote the README for the golden-then-realize pipeline; trimmed `TODO.md` to live-open items. Project name **kept as `tidalist`** (decided — rename churn not worth it). Console script and end-to-end `tidalist scaruffi examples/classical.html` (267 candidates) verified. **Pipeline complete (Phases 1-4, A-E, G); F is on-demand. Remaining open work: live-API verification + classical whole-work-vs-track granularity (see `TODO.md`).** **Last commit is Phase E (`12ed830`); Phase G is uncommitted.**
+**Phase G done, offline-green (162 passed):** deleted all remaining legacy (`domain/`, `application/`, `infrastructure/`) and its tests; moved the Scaruffi sample to `examples/classical.html`; finalized packaging — `pyproject` name `tidalist`, src-layout `packages.find` (`where=["src"]`), `tidalist` console script (`tidalist.cli:main`), `requires-python >=3.11` (StrEnum is the real floor, plan's `>=3.9` was wrong), dropped unused `lxml`; rewrote the README for the golden-then-realize pipeline; trimmed `TODO.md` to live-open items. Project name **kept as `tidalist`** (decided — rename churn not worth it). Console script and end-to-end `tidalist scaruffi examples/classical.html` (267 candidates) verified. (Committed `d1505ea`.)
+
+**Post-G cleanup, offline-green (142 passed):** removed the pre-golden transitional layer that golden+realize superseded — `core/resolve.py` (Resolver), `core/curate.py` (old Curator/Publisher), `core/proposal.py` (Proposal), and `spec.py`'s `to_spec`/`from_spec` + their dead helpers — plus their tests; nothing in the live pipeline imported them. **Resolved the deferred "does the Brief carry the ranking" question by dropping it:** `Brief` = name + criteria only; the vestigial edition `Ranking`/`PreferOriginal` are deleted (the realize stage uses `TidalRealizer` closeness, the golden stage uses the Curator's `PreferStudioEarliest`). The golden/intent brief JSON is now just `{"criteria": [...]}`. **Pipeline complete (Phases 1-4, A-E, G); F is on-demand. Open work in `TODO.md`.**
 
 Live verification (read paths): **Tidal ✓** (real search; datetime→int year confirmed on live data; `track_by_isrc` works), **Discogs ✓** (`formats` shape matches; year correct), **MusicBrainz: selection defect** — `search_recordings(limit=1)` + `[0]` grabbed a live bootleg (tied score-100 hits) with no ISRC/date. This is *superseded* by the golden-first redesign: MB returns `recordings_for` (a list) and the Curator discriminates via the brief; no in-adapter pick.
 

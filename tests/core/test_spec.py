@@ -4,62 +4,23 @@ import pytest
 
 from tidalist.core.identifiers import ISRC, MBID
 from tidalist.core.recording import Candidate, Credit, Recording, Performance
-from tidalist.core.catalog import Edition, Track
 from tidalist.core.criteria import PerformedBy, Studio, Verdict
-from tidalist.core.ranking import PreferOriginal
 from tidalist.core.brief import Brief
-from tidalist.core.proposal import Proposal, Provenance
+from tidalist.core.provenance import Provenance
 from tidalist.core.golden import GoldenPlaylist, GoldenEntry
-from tidalist.core.spec import (to_spec, from_spec, to_golden, from_golden,
-                                 to_intent, from_intent)
-
-
-def _example():
-    brief = Brief("Winwood", (PerformedBy("Steve Winwood"), Studio()), PreferOriginal())
-    rec = Recording(artist="Traffic", title="Glad", mbid=MBID("rec-1"),
-                    isrc=ISRC("GBABC1234567"), album="John Barleycorn Must Die",
-                    first_released=1970, duration_s=386, performance=Performance.STUDIO,
-                    credits=(Credit("Steve Winwood", "performer"),))
-    track = Track(id="S", title="Glad", artists=("Traffic",), isrc=ISRC("GBABC1234567"),
-                  album="John Barleycorn Must Die", year=1970, edition=Edition.ORIGINAL)
-    proposals = [Proposal(
-        Candidate("Traffic", "Glad", album="John Barleycorn Must Die", year=1970),
-        track, rec, Verdict.ok(), Provenance("nl", "signature track"))]
-    return brief, proposals
-
-
-def test_round_trips_brief_and_proposals():
-    brief, proposals = _example()
-    brief2, proposals2 = from_spec(to_spec(brief, proposals))
-    assert brief2 == brief
-    assert proposals2 == proposals
-
-
-def test_round_trips_an_unresolved_rejected_proposal():
-    brief = Brief("x", (), PreferOriginal())
-    p = Proposal(Candidate("a", "t"), None, None,
-                 Verdict.rejected("no catalog match"), Provenance("nl"))
-    _, proposals2 = from_spec(to_spec(brief, [p]))
-    assert proposals2 == [p]
-
-
-def test_spec_is_pure_json():
-    brief, proposals = _example()
-    spec = to_spec(brief, proposals)
-    assert json.loads(json.dumps(spec)) == spec
+from tidalist.core.spec import to_golden, from_golden, to_intent, from_intent
 
 
 def test_unknown_criterion_type_raises():
-    bad = {"name": "x", "criteria": [{"type": "nope"}],
-           "ranking": {"type": "prefer_original"}, "proposals": []}
+    bad = {"name": "x", "brief": {"criteria": [{"type": "nope"}]}, "entries": []}
     with pytest.raises(ValueError):
-        from_spec(bad)
+        from_golden(bad)
 
 
 # --- golden artifact ---------------------------------------------------------
 
 def _golden():
-    brief = Brief("Winwood", (PerformedBy("Steve Winwood"), Studio()), PreferOriginal())
+    brief = Brief("Winwood", (PerformedBy("Steve Winwood"), Studio()))
     admitted = GoldenEntry(
         Recording(artist="Traffic", title="Glad", mbid=MBID("rec-1"),
                   isrc=ISRC("GBABC1234567"), album="John Barleycorn Must Die",
@@ -92,7 +53,7 @@ def test_golden_entry_flattens_recording_fields_with_year_key():
 # --- intent artifact (the front-end hand-off: candidates + notes + brief) -----
 
 def _intent():
-    brief = Brief("Winwood", (PerformedBy("Steve Winwood"), Studio()), PreferOriginal())
+    brief = Brief("Winwood", (PerformedBy("Steve Winwood"), Studio()))
     candidates = [Candidate("Traffic", "Glad", album="John Barleycorn Must Die", year=1970),
                   Candidate("Blind Faith", "Presence of the Lord")]
     provenances = [Provenance("nl", "signature Traffic track"),
@@ -113,7 +74,7 @@ def test_intent_is_pure_json():
 
 
 def test_from_intent_attaches_per_candidate_note_as_provenance():
-    data = {"name": "x", "brief": {"criteria": [], "ranking": {"type": "prefer_original"}},
+    data = {"name": "x", "brief": {"criteria": []},
             "candidates": [{"artist": "A", "title": "T", "note": "because"}]}
     candidates, provenances, _ = from_intent(data)
     assert candidates[0] == Candidate("A", "T")
@@ -121,7 +82,7 @@ def test_from_intent_attaches_per_candidate_note_as_provenance():
 
 
 def test_from_intent_source_defaults_to_nl_and_is_overridable():
-    data = {"name": "x", "brief": {"criteria": [], "ranking": {}},
+    data = {"name": "x", "brief": {"criteria": []},
             "candidates": [{"artist": "A", "title": "T"}]}
     assert from_intent(data)[1][0].source == "nl"
     assert from_intent(data, source="scaruffi")[1][0].source == "scaruffi"

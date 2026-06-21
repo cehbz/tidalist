@@ -7,7 +7,6 @@ from tidalist.core.recording import Candidate, Credit, Recording, Performance
 from tidalist.core.criteria import Verdict
 from tidalist.core.provenance import Provenance
 from tidalist.core.brief import Brief
-from tidalist.core.ranking import PreferOriginal
 from tidalist.core.golden import GoldenEntry, GoldenPlaylist
 from tidalist.core.realize import Realization, RealizedEntry, PlatformItem, MatchQuality
 from tidalist.core.spec import to_golden
@@ -26,7 +25,7 @@ def _entry(title, admitted=True, reasons=("cover",), artist="Traffic"):
 
 
 def _golden(*entries, name="Winwood"):
-    return GoldenPlaylist(name, Brief(name, (), PreferOriginal()), tuple(entries))
+    return GoldenPlaylist(name, Brief(name, ()), tuple(entries))
 
 
 def _golden_dict():

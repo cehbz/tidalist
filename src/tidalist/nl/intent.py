@@ -5,8 +5,7 @@ Intent JSON:
     {
       "name": "<playlist name>",
       "brief": {
-        "criteria": [{"type": "performed_by", "artist": "..."}, {"type": "studio"}],
-        "ranking": {"type": "prefer_original"}
+        "criteria": [{"type": "performed_by", "artist": "..."}, {"type": "studio"}]
       },
       "candidates": [
         {"artist": "...", "title": "...", "album": "...?", "year": 1970,
@@ -14,8 +13,8 @@ Intent JSON:
       ]
     }
 
-Criteria and ranking are a closed tag union — validated by tag, never eval'd. `note`
-becomes the entry's provenance rationale.
+Criteria are a closed tag union — validated by tag, never eval'd. `note` becomes the
+entry's provenance rationale.
 """
 
 from ..core.recording import Candidate
