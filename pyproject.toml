@@ -33,3 +33,12 @@ py-modules = ["scaruffi_tidal"]
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["domain*", "application*", "infrastructure*"]
+
+[tool.pytest.ini_options]
+# src/ holds the new tidalist package; "." keeps the legacy flat packages importable
+# so the existing suite stays green during the strangler refactor.
+pythonpath = ["src", "."]
+testpaths = ["tests"]
+markers = [
+    "integration: hits real external services (deselect with -m 'not integration')",
+]
