@@ -190,3 +190,25 @@ def from_golden(data: dict) -> GoldenPlaylist:
     brief = _brief_from_dict(data["name"], data.get("brief", {}))
     entries = tuple(_golden_entry_from_dict(e) for e in data.get("entries", []))
     return GoldenPlaylist(data["name"], brief, entries)
+
+
+# --- intent artifact (front-end hand-off: candidates + per-line notes + brief) -
+
+def to_intent(brief: Brief, candidates: list[Candidate],
+              provenances: list[Provenance]) -> dict:
+    return {
+        "name": brief.name,
+        "brief": {"criteria": [_criterion_to_dict(c) for c in brief.criteria],
+                  "ranking": _ranking_to_dict(brief.ranking)},
+        "candidates": [{**_candidate_to_dict(c), "note": p.note}
+                       for c, p in zip(candidates, provenances)],
+    }
+
+
+def from_intent(data: dict, source: str = "nl") -> tuple[list[Candidate], list[Provenance], Brief]:
+    brief = _brief_from_dict(data["name"], data.get("brief", {}))
+    candidates, provenances = [], []
+    for cd in data.get("candidates", []):
+        candidates.append(_candidate_from_dict(cd))
+        provenances.append(Provenance(source, cd.get("note", "")))
+    return candidates, provenances, brief

@@ -38,9 +38,13 @@ class Curator:
         self._metadata = metadata
         self._ranking = ranking
 
-    def curate(self, brief: Brief, candidates: list[Candidate], source: str) -> GoldenPlaylist:
-        provenance = Provenance(source)
-        entries = tuple(self._entry(brief, c, provenance) for c in candidates)
+    def curate(self, brief: Brief, candidates: list[Candidate],
+               provenances: list[Provenance] | None = None) -> GoldenPlaylist:
+        if provenances is None:
+            provenances = [Provenance("nl")] * len(candidates)
+        elif len(provenances) != len(candidates):
+            raise ValueError("provenances must be one per candidate")
+        entries = tuple(self._entry(brief, c, p) for c, p in zip(candidates, provenances))
         return GoldenPlaylist(brief.name, brief, entries)
 
     def _entry(self, brief: Brief, candidate: Candidate, provenance: Provenance) -> GoldenEntry:

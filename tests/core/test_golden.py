@@ -1,7 +1,10 @@
+import pytest
+
 from tidalist.core.recording import Candidate, Credit, Recording, Performance
 from tidalist.core.criteria import PerformedBy, Studio
 from tidalist.core.ranking import PreferOriginal
 from tidalist.core.brief import Brief
+from tidalist.core.provenance import Provenance
 from tidalist.core.golden import Curator, GoldenPlaylist, GoldenEntry
 from tests.fakes import FakeMetadataProvider
 
@@ -16,8 +19,8 @@ def _brief(*criteria):
     return Brief("Winwood", tuple(criteria), PreferOriginal())
 
 
-def _curate(meta_map, brief, candidates, source="nl"):
-    return Curator(FakeMetadataProvider(meta_map)).curate(brief, candidates, source=source)
+def _curate(meta_map, brief, candidates, provenances=None):
+    return Curator(FakeMetadataProvider(meta_map)).curate(brief, candidates, provenances)
 
 
 def test_curate_builds_a_golden_playlist_named_for_the_brief():
@@ -80,9 +83,24 @@ def test_curate_reports_a_gap_when_no_recording_is_found():
     assert any("no recording" in v.lower() for v in entry.verdict.violations)
 
 
-def test_curate_stamps_provenance_source():
-    golden = _curate({"Glad": _rec()}, _brief(), [Candidate("Traffic", "Glad")], source="scaruffi")
-    assert golden.entries[0].provenance.source == "scaruffi"
+def test_curate_defaults_provenance_to_nl():
+    golden = _curate({"Glad": _rec()}, _brief(), [Candidate("Traffic", "Glad")])
+    assert golden.entries[0].provenance == Provenance("nl")
+
+
+def test_curate_carries_per_candidate_provenance_including_notes():
+    golden = _curate(
+        {"A": _rec(title="A"), "B": _rec(title="B")}, _brief(),
+        [Candidate("x", "A"), Candidate("x", "B")],
+        provenances=[Provenance("scaruffi", "first"), Provenance("nl", "second")])
+    assert [(e.provenance.source, e.provenance.note) for e in golden.entries] \
+        == [("scaruffi", "first"), ("nl", "second")]
+
+
+def test_curate_rejects_provenances_of_mismatched_length():
+    with pytest.raises(ValueError):
+        _curate({"A": _rec(title="A")}, _brief(), [Candidate("x", "A")],
+                provenances=[Provenance("nl"), Provenance("nl")])
 
 
 def test_curate_preserves_candidate_order():

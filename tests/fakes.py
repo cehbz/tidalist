@@ -45,3 +45,19 @@ class FakeMetadataProvider:
 
     def recordings_for(self, candidate: Candidate) -> list[Recording]:
         return list(self._by_title.get(candidate.title.casefold(), []))
+
+
+class FakeRealizer:
+    """Realizer port fake: resolves by recording title (missing => gap); records emits."""
+
+    def __init__(self, items: dict):
+        self._by_title = {k.casefold(): v for k, v in items.items()}
+        self.emitted: list = []
+
+    def resolve(self, recording):
+        return self._by_title.get(recording.title.casefold())
+
+    def emit(self, name: str, items: list) -> str:
+        ref = f"playlist-{len(self.emitted) + 1}"
+        self.emitted.append((name, [i.ref for i in items], ref))
+        return ref
