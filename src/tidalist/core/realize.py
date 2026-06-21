@@ -64,7 +64,7 @@ class Realizer(Protocol):
 def realize(golden: GoldenPlaylist, realizer: Realizer) -> Realization:
     """Resolve every admitted golden entry to a platform item (or a gap). No writes."""
     entries = tuple(
-        RealizedEntry(e, realizer.resolve(e.recording))
+        RealizedEntry(e, realizer.resolve(e.item) if isinstance(e.item, Recording) else None)
         for e in golden.entries if e.verdict.admitted
     )
     return Realization(golden.name, entries)

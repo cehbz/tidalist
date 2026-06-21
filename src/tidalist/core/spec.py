@@ -70,7 +70,7 @@ def _mbid(value):
 # --- golden artifact (the durable, portable product) -------------------------
 
 def _golden_entry_to_dict(e: GoldenEntry) -> dict:
-    r = e.recording
+    r = e.item
     return {
         "mbid": r.mbid, "isrc": r.isrc, "artist": r.artist, "title": r.title,
         "album": r.album, "year": r.first_released, "duration_s": r.duration_s,

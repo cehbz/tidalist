@@ -1,6 +1,7 @@
 import pytest
 
 from tidalist.core.recording import Recording
+from tidalist.core.album import Album
 from tidalist.core.criteria import Verdict
 from tidalist.core.provenance import Provenance
 from tidalist.core.brief import Brief
@@ -49,14 +50,14 @@ def test_realize_resolves_each_admitted_entry():
 def test_realize_skips_rejected_golden_entries():
     golden = _golden(_entry("Glad"), _entry("Cover", admitted=False))
     r = realize(golden, _FakeRealizer({"Glad": _item("T-glad")}))
-    assert [e.golden.recording.title for e in r.entries] == ["Glad"]
+    assert [e.golden.item.title for e in r.entries] == ["Glad"]
 
 
 def test_realize_records_a_gap_when_unresolved():
     golden = _golden(_entry("Glad"), _entry("Obscure"))
     r = realize(golden, _FakeRealizer({"Glad": _item("T-glad")}))   # Obscure unresolved
-    assert [g.recording.title for g in r.gaps()] == ["Obscure"]
-    assert [e.golden.recording.title for e in r.resolved()] == ["Glad"]
+    assert [g.item.title for g in r.gaps()] == ["Obscure"]
+    assert [e.golden.item.title for e in r.resolved()] == ["Glad"]
 
 
 def test_publish_emits_only_resolved_items_and_returns_the_reference():
@@ -73,3 +74,10 @@ def test_publish_raises_when_nothing_resolved():
     r = realize(_golden(_entry("Obscure")), realizer)
     with pytest.raises(CatalogError):
         publish(r, realizer)
+
+
+def test_album_entry_is_a_gap_until_phase_5():
+    g = _golden(GoldenEntry(Album(artist="Traffic", title="John Barleycorn Must Die"),
+                            Provenance("nl"), Verdict.ok()))
+    r = realize(g, _FakeRealizer({}))
+    assert [e.item.title for e in r.gaps()] == ["John Barleycorn Must Die"]

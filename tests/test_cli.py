@@ -97,7 +97,7 @@ def test_curate_golden_builds_golden_from_intent_with_notes():
 def test_realize_golden_returns_realization_with_gaps():
     r = cli.realize_golden(_golden_dict(), _realizer())
     assert isinstance(r, Realization)
-    assert [g.recording.title for g in r.gaps()] == ["Obscure"]
+    assert [g.item.title for g in r.gaps()] == ["Obscure"]
 
 
 def test_publish_golden_emits_resolved_and_returns_reference():

@@ -25,7 +25,7 @@ def format_golden(golden) -> str:
     admitted = sum(1 for e in golden.entries if e.verdict.admitted)
     lines = [f"{golden.name} — {len(golden.entries)} entries, {admitted} admitted"]
     for e in golden.entries:
-        r = e.recording
+        r = e.item
         mark = "✓" if e.verdict.admitted else "✗"
         line = f"  {mark} {r.artist} — {r.title}{_recmeta(r)}"
         if not e.verdict.admitted:
@@ -40,7 +40,7 @@ def format_realization(realization: Realization) -> str:
             f"{len(gaps)} gap{'' if len(gaps) == 1 else 's'}")
     lines = [head]
     for e in realization.entries:
-        r = e.golden.recording
+        r = e.golden.item
         if e.is_gap:
             lines.append(f"  ✗ {r.artist} — {r.title}  — gap (no platform match)")
         else:
@@ -49,8 +49,9 @@ def format_realization(realization: Realization) -> str:
 
 
 def _recmeta(r) -> str:
-    bits = [b for b in (r.performance.value if r.performance.value != "unknown" else None,
-                        str(r.first_released) if r.first_released else None) if b]
+    performance = getattr(r, "performance", None)
+    perf_str = performance.value if performance is not None and performance.value != "unknown" else None
+    bits = [b for b in (perf_str, str(r.first_released) if r.first_released else None) if b]
     return f"  [{', '.join(bits)}]" if bits else ""
 
 

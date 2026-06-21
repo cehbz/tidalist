@@ -35,7 +35,7 @@ def test_curate_admits_a_recording_that_satisfies_the_criteria():
     golden = _curate({"Glad": _rec()}, _brief(PerformedBy("Steve Winwood")),
                      [Candidate("Traffic", "Glad")])
     entry = golden.entries[0]
-    assert entry.recording.title == "Glad"
+    assert entry.item.title == "Glad"
     assert entry.verdict.admitted
 
 
@@ -52,8 +52,8 @@ def test_curate_picks_the_studio_take_over_a_live_one():
     studio = _rec(performance=Performance.STUDIO, year=1970, mbid="s")
     live = _rec(performance=Performance.LIVE, year=1973, mbid="l")
     golden = _curate({"Glad": [live, studio]}, _brief(), [Candidate("Traffic", "Glad")])
-    assert golden.entries[0].recording.mbid == "s"
-    assert golden.entries[0].recording.performance is Performance.STUDIO
+    assert golden.entries[0].item.mbid == "s"
+    assert golden.entries[0].item.performance is Performance.STUDIO
 
 
 def test_curate_chooses_among_admissible_under_a_studio_criterion():
@@ -61,14 +61,14 @@ def test_curate_chooses_among_admissible_under_a_studio_criterion():
     live = _rec(performance=Performance.LIVE, mbid="l")
     golden = _curate({"Glad": [live, studio]}, _brief(Studio()), [Candidate("Traffic", "Glad")])
     entry = golden.entries[0]
-    assert entry.recording.mbid == "s" and entry.verdict.admitted
+    assert entry.item.mbid == "s" and entry.verdict.admitted
 
 
 def test_curate_surfaces_a_best_effort_recording_when_none_admissible():
     live = _rec(performance=Performance.LIVE, mbid="l")
     golden = _curate({"Glad": [live]}, _brief(Studio()), [Candidate("Traffic", "Glad")])
     entry = golden.entries[0]
-    assert entry.recording.mbid == "l"          # surfaced for review
+    assert entry.item.mbid == "l"          # surfaced for review
     assert not entry.verdict.admitted
     assert any("live" in v for v in entry.verdict.violations)
 
@@ -76,8 +76,8 @@ def test_curate_surfaces_a_best_effort_recording_when_none_admissible():
 def test_curate_reports_a_gap_when_no_recording_is_found():
     golden = _curate({}, _brief(), [Candidate("Nobody", "Nothing")])
     entry = golden.entries[0]
-    assert entry.recording.artist == "Nobody" and entry.recording.title == "Nothing"
-    assert entry.recording.mbid is None
+    assert entry.item.artist == "Nobody" and entry.item.title == "Nothing"
+    assert entry.item.mbid is None
     assert not entry.verdict.admitted
     assert any("no recording" in v.lower() for v in entry.verdict.violations)
 
@@ -105,4 +105,4 @@ def test_curate_rejects_provenances_of_mismatched_length():
 def test_curate_preserves_candidate_order():
     golden = _curate({"A": _rec(title="A"), "B": _rec(title="B")}, _brief(),
                      [Candidate("x", "B"), Candidate("x", "A")])
-    assert [e.recording.title for e in golden.entries] == ["B", "A"]
+    assert [e.item.title for e in golden.entries] == ["B", "A"]

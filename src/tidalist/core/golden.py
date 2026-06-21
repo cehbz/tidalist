@@ -11,6 +11,7 @@ result is reviewable; realization later acts only on admitted entries.
 from dataclasses import dataclass
 
 from .ports import MetadataProvider
+from .album import Album
 from .recording import Candidate, Recording
 from .brief import Brief
 from .criteria import Verdict
@@ -20,7 +21,7 @@ from .provenance import Provenance
 
 @dataclass(frozen=True, slots=True)
 class GoldenEntry:
-    recording: Recording
+    item: Album | Recording
     provenance: Provenance
     verdict: Verdict
 
