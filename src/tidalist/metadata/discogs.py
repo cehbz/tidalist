@@ -5,6 +5,7 @@ artists as performers). It does not expose ISRC, so isrc stays None.
 """
 
 from ..core.recording import Candidate, Credit, Recording, Performance
+from .rate_limit import MinInterval
 
 
 def recording_from_discogs(result) -> Recording:
@@ -40,10 +41,12 @@ def _year(result) -> int | None:
 class DiscogsMetadata:
     """MetadataProvider port backed by a discogs_client.Client."""
 
-    def __init__(self, client):
+    def __init__(self, client, *, limiter=None, rate_limit: int = 60):
         self._client = client
+        self._limiter = limiter or MinInterval(rate_limit)
 
     def recording_for(self, candidate: Candidate) -> Recording | None:
+        self._limiter.wait()
         query = f"{candidate.artist} {candidate.title}"
         for result in self._client.search(query, type="release"):
             return recording_from_discogs(result)

@@ -66,3 +66,15 @@ def test_recording_for_maps_first_result():
 
 def test_recording_for_none_when_no_results():
     assert DiscogsMetadata(_FakeClient([])).recording_for(Candidate("X", "Y")) is None
+
+
+def test_recording_for_waits_on_the_limiter():
+    calls = []
+
+    class _Limiter:
+        def wait(self):
+            calls.append(1)
+
+    DiscogsMetadata(_FakeClient([_result()]), limiter=_Limiter()).recording_for(
+        Candidate("Traffic", "Glad"))
+    assert calls == [1]
