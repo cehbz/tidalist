@@ -144,3 +144,25 @@ def test_artist_mbid_returns_top_hit_id():
 
 def test_artist_mbid_none_when_no_hits():
     assert MusicBrainzMetadata(_FakeMB([], artists=[]))._artist_mbid("Nobody") is None
+
+
+# --- recordings_for: identity filtering ---
+
+def _hit_credited(rec_id, artist_id, artist_name):
+    return {"id": rec_id, "title": "Glad", "length": "419000",
+            "artist-credit": [{"artist": {"id": artist_id, "name": artist_name}}],
+            "release-list": [{"id": "r", "title": "John Barleycorn Must Die", "date": "1970"}],
+            "disambiguation": ""}
+
+
+def test_recordings_for_drops_hits_not_credited_to_the_resolved_artist():
+    mb = _FakeMB([_hit_credited("rec-traffic", "a-traffic", "Traffic"),
+                  _hit_credited("rec-sound", "a-sound", "Traffic Sound")],
+                 artists=[{"id": "a-traffic", "name": "Traffic"}])
+    recs = MusicBrainzMetadata(mb).recordings_for(Candidate("Traffic", "Glad"))
+    assert [r.mbid for r in recs] == ["rec-traffic"]   # Traffic Sound dropped
+
+
+def test_recordings_for_unfiltered_when_artist_unresolved():
+    mb = _FakeMB([_hit_credited("rec-1", "a-x", "X")], artists=[])  # no artist match
+    assert len(MusicBrainzMetadata(mb).recordings_for(Candidate("X", "Glad"))) == 1

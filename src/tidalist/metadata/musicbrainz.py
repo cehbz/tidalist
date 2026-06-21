@@ -61,6 +61,11 @@ def _performance(rec: dict) -> Performance:
             else Performance.UNKNOWN)
 
 
+def _credited_to(rec: dict, artist_mbid: str) -> bool:
+    return any(isinstance(e, dict) and (e.get("artist") or {}).get("id") == artist_mbid
+               for e in rec.get("artist-credit") or [])
+
+
 def _credits(rec: dict) -> tuple[Credit, ...]:
     credits = [Credit(e["artist"]["name"], "performer")
                for e in rec.get("artist-credit") or []
@@ -96,4 +101,8 @@ class MusicBrainzMetadata:
     def recordings_for(self, candidate: Candidate) -> list[Recording]:
         results = self._mb.search_recordings(
             artist=candidate.artist, recording=candidate.title, limit=self._limit)
-        return [recording_from_musicbrainz(h) for h in results.get("recording-list") or []]
+        hits = results.get("recording-list") or []
+        artist_mbid = self._artist_mbid(candidate.artist)
+        if artist_mbid is not None:
+            hits = [h for h in hits if _credited_to(h, artist_mbid)]
+        return [recording_from_musicbrainz(h) for h in hits]
