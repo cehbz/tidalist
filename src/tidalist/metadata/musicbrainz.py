@@ -84,9 +84,14 @@ def _first_year(rec: dict) -> int | None:
 class MusicBrainzMetadata:
     """MetadataProvider port backed by musicbrainzngs."""
 
-    def __init__(self, mb=musicbrainzngs, *, limit: int = 25):
+    def __init__(self, mb=musicbrainzngs, *, limit: int = 25, artist_limit: int = 5):
         self._mb = mb
         self._limit = limit
+        self._artist_limit = artist_limit
+
+    def _artist_mbid(self, artist: str) -> str | None:
+        hits = self._mb.search_artists(artist=artist, limit=self._artist_limit).get("artist-list") or []
+        return hits[0]["id"] if hits else None
 
     def recordings_for(self, candidate: Candidate) -> list[Recording]:
         results = self._mb.search_recordings(

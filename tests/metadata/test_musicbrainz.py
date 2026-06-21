@@ -92,13 +92,17 @@ def test_studio_default_is_unknown():
 # --- MusicBrainzMetadata.recordings_for ---
 
 class _FakeMB:
-    def __init__(self, search_list):
+    def __init__(self, search_list, artists=None):
         self._search = search_list
+        self._artists = artists if artists is not None else []
         self.calls = []
 
     def search_recordings(self, query="", limit=None, **fields):
         self.calls.append(("search", fields, limit))
         return {"recording-list": self._search}
+
+    def search_artists(self, artist="", limit=None, **kw):
+        return {"artist-list": self._artists}
 
     def get_recording_by_id(self, id, includes=None, **kw):
         self.calls.append(("get", id, tuple(includes or [])))
@@ -128,3 +132,15 @@ def test_recordings_for_searches_by_artist_and_title():
 
 def test_recordings_for_empty_when_no_hits():
     assert MusicBrainzMetadata(_FakeMB([])).recordings_for(Candidate("X", "Y")) == []
+
+
+# --- MusicBrainzMetadata._artist_mbid ---
+
+def test_artist_mbid_returns_top_hit_id():
+    mb = _FakeMB([], artists=[{"id": "a-traffic", "name": "Traffic"},
+                              {"id": "a-sound", "name": "Traffic Sound"}])
+    assert MusicBrainzMetadata(mb)._artist_mbid("Traffic") == "a-traffic"
+
+
+def test_artist_mbid_none_when_no_hits():
+    assert MusicBrainzMetadata(_FakeMB([], artists=[]))._artist_mbid("Nobody") is None
