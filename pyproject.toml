@@ -17,20 +17,13 @@ dependencies = [
     "musicbrainzngs>=0.7.1",
 ]
 
-# The working end-to-end CLI is scaruffi_tidal.py:main (the full
-# parse -> Discogs -> Tidal -> playlist pipeline). The legacy cli.py
-# auth shell is intentionally NOT wired as the entry point (see TODO.md).
-[project.scripts]
-scaruffi-tidal = "scaruffi_tidal:main"
-
 [dependency-groups]
 dev = [
     "pytest>=7.0",
 ]
 
-[tool.setuptools]
-py-modules = ["scaruffi_tidal"]
-
+# Legacy flat packages, importable for the remaining legacy tests until Phase G
+# removes them. The new tidalist package lives under src/ (see pythonpath below).
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["domain*", "application*", "infrastructure*"]
