@@ -1,7 +1,8 @@
 from types import SimpleNamespace
 
+from tidalist.core.album import Album
 from tidalist.core.recording import Candidate, Performance
-from tidalist.metadata.discogs import recording_from_discogs, DiscogsMetadata
+from tidalist.metadata.discogs import recording_from_discogs, DiscogsMetadata, album_from_discogs
 
 CAND = Candidate("Traffic", "Glad", album="John Barleycorn Must Die")
 
@@ -109,4 +110,73 @@ def test_recordings_for_waits_on_the_limiter():
 
     DiscogsMetadata(_FakeClient([_result()]), limiter=_Limiter()).recordings_for(
         Candidate("Traffic", "Glad"))
+    assert calls == [1]
+
+
+# --- album_from_discogs ---
+
+
+def _master(year=1970):
+    return SimpleNamespace(year=year)
+
+
+def test_album_from_discogs_artist_from_candidate():
+    album = album_from_discogs(_master(), CAND)
+    assert album.artist == "Traffic"
+
+
+def test_album_from_discogs_title_from_candidate():
+    album = album_from_discogs(_master(), CAND)
+    assert album.title == "Glad"
+
+
+def test_album_from_discogs_mbid_is_none():
+    assert album_from_discogs(_master(), CAND).mbid is None
+
+
+def test_album_from_discogs_year_from_master():
+    assert album_from_discogs(_master(year=1970), CAND).first_released == 1970
+
+
+# --- DiscogsMetadata.albums_for ---
+
+def test_albums_for_maps_masters_to_albums():
+    client = _FakeClient([_master(1970), _master(1971)])
+    albums = DiscogsMetadata(client).albums_for(CAND)
+    assert len(albums) == 2
+    assert all(a.mbid is None for a in albums)
+    assert albums[0].first_released == 1970
+
+
+def test_albums_for_candidate_artist_and_title_in_query():
+    client = _FakeClient([_master()])
+    DiscogsMetadata(client).albums_for(CAND)
+    assert client.queries == [("Traffic Glad", "master")]
+
+
+def test_albums_for_islice_bounded_lazy():
+    consumed = []
+
+    def lazy_masters():
+        for i in range(1000):
+            consumed.append(i)
+            yield _master(year=2000 + (i % 50))
+
+    class _LazyClient:
+        def search(self, query, type=None):
+            return lazy_masters()
+
+    albums = DiscogsMetadata(_LazyClient(), limit=3).albums_for(CAND)
+    assert len(albums) == 3
+    assert len(consumed) == 3
+
+
+def test_albums_for_waits_on_limiter():
+    calls = []
+
+    class _Limiter:
+        def wait(self):
+            calls.append(1)
+
+    DiscogsMetadata(_FakeClient([_master()]), limiter=_Limiter()).albums_for(CAND)
     assert calls == [1]

@@ -1,5 +1,7 @@
+from tidalist.core.album import Album
 from tidalist.core.recording import Candidate, Performance
-from tidalist.metadata.musicbrainz import recording_from_musicbrainz, MusicBrainzMetadata
+from tidalist.metadata.musicbrainz import (recording_from_musicbrainz, MusicBrainzMetadata,
+                                           album_from_release_group)
 
 
 def _rec(disambiguation="", isrcs=("GBABC1234567",), dates=("1970-07-01", "1985-01-01"),
@@ -92,9 +94,10 @@ def test_studio_default_is_unknown():
 # --- MusicBrainzMetadata.recordings_for ---
 
 class _FakeMB:
-    def __init__(self, search_list, artists=None):
+    def __init__(self, search_list, artists=None, release_groups=None):
         self._search = search_list
         self._artists = artists if artists is not None else []
+        self._release_groups = release_groups if release_groups is not None else []
         self.calls = []
 
     def search_recordings(self, query="", limit=None, **fields):
@@ -103,6 +106,9 @@ class _FakeMB:
 
     def search_artists(self, artist="", limit=None, **kw):
         return {"artist-list": self._artists}
+
+    def search_release_groups(self, artist="", releasegroup="", limit=None, **kw):
+        return {"release-group-list": self._release_groups}
 
     def get_recording_by_id(self, id, includes=None, **kw):
         self.calls.append(("get", id, tuple(includes or [])))
@@ -166,3 +172,87 @@ def test_recordings_for_drops_hits_not_credited_to_the_resolved_artist():
 def test_recordings_for_unfiltered_when_artist_unresolved():
     mb = _FakeMB([_hit_credited("rec-1", "a-x", "X")], artists=[])  # no artist match
     assert len(MusicBrainzMetadata(mb).recordings_for(Candidate("X", "Glad"))) == 1
+
+
+# --- album_from_release_group ---
+
+
+def _rg(rg_id="rg-1", title="John Barleycorn Must Die", frd="1970-07",
+        credit_phrase="Traffic", artist_id="a-traffic", artist_name="Traffic"):
+    return {
+        "id": rg_id,
+        "title": title,
+        "first-release-date": frd,
+        "primary-type": "Album",
+        "artist-credit": [{"artist": {"id": artist_id, "name": artist_name}}],
+        "artist-credit-phrase": credit_phrase,
+    }
+
+
+def test_album_from_rg_maps_id_to_mbid():
+    assert album_from_release_group(_rg()).mbid == "rg-1"
+
+
+def test_album_from_rg_maps_title():
+    assert album_from_release_group(_rg()).title == "John Barleycorn Must Die"
+
+
+def test_album_from_rg_maps_first_release_year():
+    assert album_from_release_group(_rg(frd="1970-07")).first_released == 1970
+
+
+def test_album_from_rg_partial_date_still_extracts_year():
+    assert album_from_release_group(_rg(frd="1970")).first_released == 1970
+
+
+def test_album_from_rg_non_digit_date_yields_none():
+    assert album_from_release_group(_rg(frd="unknown")).first_released is None
+
+
+def test_album_from_rg_artist_from_credit_phrase():
+    assert album_from_release_group(_rg(credit_phrase="Traffic")).artist == "Traffic"
+
+
+def test_album_from_rg_artist_falls_back_to_first_credit_when_no_phrase():
+    rg = _rg()
+    del rg["artist-credit-phrase"]
+    assert album_from_release_group(rg).artist == "Traffic"
+
+
+# --- MusicBrainzMetadata.albums_for ---
+
+def _rg_credited(rg_id, artist_id, artist_name):
+    return {
+        "id": rg_id,
+        "title": "John Barleycorn Must Die",
+        "first-release-date": "1970-07",
+        "primary-type": "Album",
+        "artist-credit": [{"artist": {"id": artist_id, "name": artist_name}}],
+        "artist-credit-phrase": artist_name,
+    }
+
+
+def test_albums_for_maps_release_groups_to_albums():
+    mb = _FakeMB([], artists=[{"id": "a-traffic", "name": "Traffic"}],
+                 release_groups=[_rg_credited("rg-1", "a-traffic", "Traffic")])
+    albums = MusicBrainzMetadata(mb).albums_for(Candidate("Traffic", "John Barleycorn Must Die"))
+    assert len(albums) == 1
+    assert albums[0].mbid == "rg-1"
+    assert albums[0].title == "John Barleycorn Must Die"
+
+
+def test_albums_for_drops_rgs_not_credited_to_resolved_artist():
+    mb = _FakeMB([], artists=[{"id": "a-traffic", "name": "Traffic"}],
+                 release_groups=[
+                     _rg_credited("rg-traffic", "a-traffic", "Traffic"),
+                     _rg_credited("rg-other", "a-other", "Other Artist"),
+                 ])
+    albums = MusicBrainzMetadata(mb).albums_for(Candidate("Traffic", "John Barleycorn Must Die"))
+    assert [a.mbid for a in albums] == ["rg-traffic"]
+
+
+def test_albums_for_unfiltered_when_artist_unresolved():
+    mb = _FakeMB([], artists=[],
+                 release_groups=[_rg_credited("rg-x", "a-x", "X")])
+    albums = MusicBrainzMetadata(mb).albums_for(Candidate("X", "Something"))
+    assert len(albums) == 1

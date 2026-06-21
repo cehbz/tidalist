@@ -9,8 +9,22 @@ Callers must musicbrainzngs.set_useragent(...) before live use.
 
 import musicbrainzngs
 
+from ..core.album import Album
 from ..core.identifiers import ISRC, MBID
 from ..core.recording import Candidate, Credit, Recording, Performance
+
+
+def album_from_release_group(rg: dict) -> Album:
+    """Map a MusicBrainz release-group dict (search hit) to an Album."""
+    frd = rg.get("first-release-date") or ""
+    first_released = int(frd[:4]) if len(frd) >= 4 and frd[:4].isdigit() else None
+    artist = rg.get("artist-credit-phrase") or _first_artist(rg)
+    return Album(
+        artist=artist,
+        title=rg["title"],
+        mbid=MBID(rg["id"]) if rg.get("id") else None,
+        first_released=first_released,
+    )
 
 
 def recording_from_musicbrainz(rec: dict) -> Recording:
@@ -106,3 +120,12 @@ class MusicBrainzMetadata:
         if artist_mbid is not None:
             hits = [h for h in hits if _credited_to(h, artist_mbid)]
         return [recording_from_musicbrainz(h) for h in hits]
+
+    def albums_for(self, candidate: Candidate) -> list[Album]:
+        results = self._mb.search_release_groups(
+            artist=candidate.artist, releasegroup=candidate.title, limit=self._limit)
+        rgs = results.get("release-group-list") or []
+        artist_mbid = self._artist_mbid(candidate.artist)
+        if artist_mbid is not None:
+            rgs = [rg for rg in rgs if _credited_to(rg, artist_mbid)]
+        return [album_from_release_group(rg) for rg in rgs]

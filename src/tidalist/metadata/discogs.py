@@ -8,6 +8,7 @@ release supplies edition-grade facts (album, year, live-or-not, release artists)
 
 import itertools
 
+from ..core.album import Album
 from ..core.recording import Candidate, Credit, Recording, Performance
 from .rate_limit import MinInterval
 
@@ -45,6 +46,16 @@ def _year(result) -> int | None:
     return None
 
 
+def album_from_discogs(master, candidate: Candidate) -> Album:
+    """Map a Discogs master to an Album. mbid is always None (Discogs has no MBID)."""
+    return Album(
+        artist=candidate.artist,
+        title=candidate.title,
+        mbid=None,
+        first_released=_year(master),
+    )
+
+
 class DiscogsMetadata:
     """MetadataProvider port backed by a discogs_client.Client."""
 
@@ -61,3 +72,10 @@ class DiscogsMetadata:
         results = self._client.search(query, type="release")
         return [recording_from_discogs(r, candidate)
                 for r in itertools.islice(results, self._limit)]
+
+    def albums_for(self, candidate: Candidate) -> list[Album]:
+        self._limiter.wait()
+        query = f"{candidate.artist} {candidate.title}"
+        masters = self._client.search(query, type="master")
+        return [album_from_discogs(m, candidate)
+                for m in itertools.islice(masters, self._limit)]
