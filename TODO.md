@@ -1,32 +1,28 @@
 # TODO
 
-Active work and open items. Completed work lives in git history.
-
-The codebase is being re-founded as `tidalist` (`src/tidalist/`) per
-`docs/superpowers/plans/2026-06-20-tidalist-architecture.md`. The legacy code
-(`domain/`, `application/`, `infrastructure/`, `scaruffi_tidal.py`) is still
-present and gets deleted in Phase 7.
+Active work and open items. Completed work lives in git history; architecture and
+phase status live in `docs/superpowers/plans/2026-06-20-tidalist-architecture.md`.
 
 ## Open
 
-### Live integration unverified (Phases 2-3)
-The Tidal and Discogs/MusicBrainz adapters are unit-tested against fakes anchored
-to probed signatures, but not run against the real APIs. Once `authenticate()`
-plus `musicbrainzngs.set_useragent` give a live session, confirm: Tidal
-`SearchResults` shape and `playlist.add` on a fresh playlist; discogs result
-shape (formats/year/artists); musicbrainzngs response shapes. Add
-`@pytest.mark.integration` tests.
+### Rename the repo to match the package
+The package, distribution, and CLI are all `tidalist`, but the GitHub repo and local
+dir are still `scaruffi_tidal`. Rename `cehbz/scaruffi_tidal` → `cehbz/tidalist`
+(GitHub rename + update the git remote URL; optionally rename `~/projects/scaruffi_tidal`).
 
-### Matching quality: cross-source drift
-Hard case from the old run: Hildegard Von Bingen "O Jerusalem", recommended
-"Sequentia Ensemble (1995)", vs Discogs 1997 / Tidal 1998, performer "Sequentia".
-The new design mitigates it (`Recording.performs` substring-matches "Sequentia"
-within "Sequentia Ensemble"; year is a ranking signal, not a hard filter), but
-validate against a corpus of known-hard cases before trusting it.
+### Live integration unverified
+The adapters are unit-tested against fakes anchored to probed signatures, but the
+full pipeline is not end-to-end verified against real APIs. With a live Tidal
+session (`authenticate()`) and `musicbrainzngs.set_useragent`, confirm and add
+`@pytest.mark.integration` tests for: MusicBrainz `search_recordings` hit shapes
+feeding `recordings_for`; the `TidalRealizer` resolve/emit path (search,
+`get_tracks_by_isrc`, create + add on a fresh playlist); Discogs result shapes.
 
-### Phase 7: delete legacy
-Remove `domain/`, `application/`, `infrastructure/`, `scaruffi_tidal.py`,
-`classical.html` and their tests once the scaruffi + nl front-ends (Phases 5-6)
-replace them. Retires, in one go, the old `TidalAlbum.year` datetime bug, the
-dead SQLite cache, the over-built leaky-bucket limiter, and the dual config
-schema (all superseded by tidalist).
+### Classical whole-work vs track granularity, and cross-source drift
+Scaruffi recommends whole works (album-length), but the golden/realize pipeline runs
+at recording/track granularity. `scaruffi/parse.py` candidates carry
+`whole_album=True`, but nothing consumes it yet — decide how realization handles a
+whole-album candidate (resolve to an album, expand to tracks, or a dedicated
+album-realize path). Validate matching against a corpus of hard cases (e.g. the
+old Sequentia "O Jerusalem": recommended "Sequentia Ensemble (1995)" vs Discogs 1997
+/ Tidal 1998 / performer "Sequentia").

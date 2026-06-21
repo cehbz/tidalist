@@ -3,34 +3,33 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "scaruffi-tidal"
+name = "tidalist"
 version = "1.0.0"
-description = "Create Tidal playlists from Piero Scaruffi's classical music recommendations"
+description = "Curate a platform-agnostic golden playlist of recordings, then realize it onto a platform (Tidal now; others later)."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 dependencies = [
     "beautifulsoup4>=4.12.0",
-    "lxml>=5.0.0",
     "pyyaml>=6.0",
     "discogs-client>=2.3.0",
     "tidalapi>=0.7.0",
     "musicbrainzngs>=0.7.1",
 ]
 
+[project.scripts]
+tidalist = "tidalist.cli:main"
+
 [dependency-groups]
 dev = [
     "pytest>=7.0",
 ]
 
-# Legacy flat packages, importable for the remaining legacy tests until Phase G
-# removes them. The new tidalist package lives under src/ (see pythonpath below).
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["domain*", "application*", "infrastructure*"]
+where = ["src"]
+include = ["tidalist*"]
 
 [tool.pytest.ini_options]
-# src/ holds the new tidalist package; "." keeps the legacy flat packages importable
-# so the existing suite stays green during the strangler refactor.
+# Package source under src/; "." keeps the tests package importable (tests.fakes).
 pythonpath = ["src", "."]
 testpaths = ["tests"]
 markers = [
