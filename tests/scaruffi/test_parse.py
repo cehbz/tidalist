@@ -1,4 +1,4 @@
-from tidalist.core.recording import Candidate
+from tidalist.core.recording import Candidate, Kind
 from tidalist.scaruffi.parse import parse_scaruffi
 
 
@@ -16,7 +16,7 @@ def test_basic_entry_maps_performer_work_and_year():
     cand, prov = _one("Bach: Brandenburg Concertos",
                       "Recommended recording: Il Giardino Armonico (1997)")
     assert cand == Candidate("Il Giardino Armonico", "Bach: Brandenburg Concertos",
-                             year=1997, whole_album=True)
+                             year=1997, kind=Kind.ALBUM)
     assert prov.source == "scaruffi"
 
 

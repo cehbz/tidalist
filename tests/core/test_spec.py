@@ -3,7 +3,7 @@ import json
 import pytest
 
 from tidalist.core.identifiers import ISRC, MBID
-from tidalist.core.recording import Candidate, Credit, Recording, Performance
+from tidalist.core.recording import Candidate, Credit, Recording, Performance, Kind
 from tidalist.core.criteria import PerformedBy, Studio, Verdict
 from tidalist.core.brief import Brief
 from tidalist.core.provenance import Provenance
@@ -86,3 +86,12 @@ def test_from_intent_source_defaults_to_nl_and_is_overridable():
             "candidates": [{"artist": "A", "title": "T"}]}
     assert from_intent(data)[1][0].source == "nl"
     assert from_intent(data, source="scaruffi")[1][0].source == "scaruffi"
+
+
+def test_intent_round_trips_candidate_kind():
+    brief = Brief("x", ())
+    candidates = [Candidate("Traffic", "John Barleycorn Must Die", kind=Kind.ALBUM),
+                  Candidate("Spencer Davis Group", "Gimme Some Lovin'")]  # default TRACK
+    provenances = [Provenance("nl", "album"), Provenance("nl", "track")]
+    c2, _, _ = from_intent(to_intent(brief, candidates, provenances))
+    assert [c.kind for c in c2] == [Kind.ALBUM, Kind.TRACK]

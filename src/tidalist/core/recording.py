@@ -15,6 +15,12 @@ class Performance(StrEnum):
     UNKNOWN = "unknown"
 
 
+class Kind(StrEnum):
+    """Whether a candidate represents a whole album or a single track."""
+    ALBUM = "album"
+    TRACK = "track"
+
+
 @dataclass(frozen=True, slots=True)
 class Credit:
     artist: str
@@ -53,7 +59,7 @@ class Candidate:
     album: str | None = None
     year: int | None = None
     isrc: ISRC | None = None
-    whole_album: bool = False
+    kind: Kind = Kind.TRACK
 
     def __post_init__(self):
         if not self.artist.strip() or not self.title.strip():

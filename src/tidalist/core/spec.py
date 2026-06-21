@@ -5,7 +5,7 @@ known rule types, we validate by tag, and we never eval model output.
 """
 
 from .identifiers import ISRC, MBID
-from .recording import Candidate, Credit, Recording, Performance
+from .recording import Candidate, Credit, Recording, Performance, Kind
 from .criteria import PerformedBy, Studio, Criterion, Verdict
 from .brief import Brief
 from .provenance import Provenance
@@ -35,12 +35,12 @@ def _criterion_from_dict(d: dict) -> Criterion:
 
 def _candidate_to_dict(c: Candidate) -> dict:
     return {"artist": c.artist, "title": c.title, "album": c.album,
-            "year": c.year, "isrc": c.isrc, "whole_album": c.whole_album}
+            "year": c.year, "isrc": c.isrc, "kind": c.kind.value}
 
 
 def _candidate_from_dict(d: dict) -> Candidate:
     return Candidate(d["artist"], d["title"], d.get("album"), d.get("year"),
-                     _isrc(d.get("isrc")), d.get("whole_album", False))
+                     _isrc(d.get("isrc")), Kind(d.get("kind", "track")))
 
 
 def _brief_to_dict(b: Brief) -> dict:

@@ -1,7 +1,7 @@
 import pytest
 
 from tidalist.core.identifiers import ISRC, MBID
-from tidalist.core.recording import Performance, Credit, Recording, Candidate
+from tidalist.core.recording import Performance, Credit, Recording, Candidate, Kind
 
 
 def _recording(performance=Performance.STUDIO,
@@ -71,3 +71,11 @@ def test_candidate_requires_artist_and_title():
         Candidate("", "x")
     with pytest.raises(ValueError):
         Candidate("x", "  ")
+
+
+def test_candidate_kind_defaults_to_track():
+    assert Candidate("Traffic", "Glad").kind is Kind.TRACK
+
+
+def test_candidate_can_be_an_album():
+    assert Candidate("Traffic", "John Barleycorn Must Die", kind=Kind.ALBUM).kind is Kind.ALBUM

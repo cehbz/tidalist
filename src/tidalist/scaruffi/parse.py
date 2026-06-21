@@ -2,7 +2,7 @@
 
 Each entry is "Composer: Work" + "Recommended recording: <performer> (<year|label>)" with
 optional "(also …)" / "X or Y" alternates. The primary recommendation becomes a Candidate
-(artist = performer, title = "Composer: Work", whole_album); the alternates ride in the
+(artist = performer, title = "Composer: Work", kind=Kind.ALBUM); the alternates ride in the
 provenance note. The brief carries no hard criteria — Scaruffi's pick is the discrimination.
 """
 
@@ -10,7 +10,7 @@ import re
 
 from bs4 import BeautifulSoup
 
-from ..core.recording import Candidate
+from ..core.recording import Candidate, Kind
 from ..core.provenance import Provenance
 from ..core.brief import Brief
 
@@ -24,7 +24,7 @@ def parse_scaruffi(html: str, *, name: str = "Scaruffi Classical"
         if not performer:
             continue
         candidates.append(Candidate(artist=performer, title=f"{composer}: {work}",
-                                    year=year, whole_album=True))
+                                    year=year, kind=Kind.ALBUM))
         note = f"{composer}: {work} — {performer}"
         if alternates:
             note += f" (also {', '.join(alternates)})"

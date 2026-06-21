@@ -9,7 +9,7 @@ Intent JSON:
       },
       "candidates": [
         {"artist": "...", "title": "...", "album": "...?", "year": 1970,
-         "isrc": "...?", "whole_album": false, "note": "<why it belongs>"}
+         "isrc": "...?", "kind": "track", "note": "<why it belongs>"}
       ]
     }
 
