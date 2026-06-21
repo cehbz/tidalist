@@ -1,6 +1,7 @@
 import pytest
 
-from tidalist.core.recording import Candidate, Credit, Recording, Performance
+from tidalist.core.recording import Candidate, Credit, Recording, Performance, Kind
+from tidalist.core.album import Album
 from tidalist.core.criteria import PerformedBy, Studio
 from tidalist.core.brief import Brief
 from tidalist.core.provenance import Provenance
@@ -106,3 +107,64 @@ def test_curate_preserves_candidate_order():
     golden = _curate({"A": _rec(title="A"), "B": _rec(title="B")}, _brief(),
                      [Candidate("x", "B"), Candidate("x", "A")])
     assert [e.item.title for e in golden.entries] == ["B", "A"]
+
+
+# ---------------------------------------------------------------------------
+# Album candidate tests (Task 3)
+# ---------------------------------------------------------------------------
+
+def _album(title="John Barleycorn Must Die", artist="Traffic",
+           mbid="mb-alb-1", year=1970):
+    return Album(artist=artist, title=title, mbid=mbid, first_released=year)
+
+
+def test_album_candidate_yields_album_golden_entry():
+    """ALBUM kind → GoldenEntry whose item is the discovered Album, admitted."""
+    alb = _album()
+    candidate = Candidate("Traffic", "John Barleycorn Must Die", kind=Kind.ALBUM)
+    curator = Curator(FakeMetadataProvider(albums={"John Barleycorn Must Die": alb}))
+    golden = curator.curate(_brief(), [candidate])
+    entry = golden.entries[0]
+    assert isinstance(entry.item, Album)
+    assert entry.item.mbid == "mb-alb-1"
+    assert entry.verdict.admitted
+
+
+def test_album_candidate_admitted_even_under_restrictive_brief():
+    """Album entries are not gated by recording-level brief criteria."""
+    alb = _album()
+    candidate = Candidate("Traffic", "John Barleycorn Must Die", kind=Kind.ALBUM)
+    # Studio() + PerformedBy() would reject a recording that lacks them, but must not gate albums
+    curator = Curator(FakeMetadataProvider(albums={"John Barleycorn Must Die": alb}))
+    golden = curator.curate(_brief(Studio(), PerformedBy("Steve Winwood")), [candidate])
+    entry = golden.entries[0]
+    assert isinstance(entry.item, Album)
+    assert entry.verdict.admitted
+
+
+def test_album_candidate_no_album_found_yields_rejected_album_entry():
+    """ALBUM kind with no provider results → rejected Album built from candidate."""
+    candidate = Candidate("Traffic", "The Low Spark", kind=Kind.ALBUM)
+    curator = Curator(FakeMetadataProvider())
+    golden = curator.curate(_brief(), [candidate])
+    entry = golden.entries[0]
+    assert isinstance(entry.item, Album)
+    assert entry.item.artist == "Traffic"
+    assert entry.item.title == "The Low Spark"
+    assert entry.item.mbid is None
+    assert not entry.verdict.admitted
+    assert any("no album" in v.lower() for v in entry.verdict.violations)
+
+
+def test_track_candidate_still_uses_recordings_path():
+    """TRACK kind (default) still calls recordings_for — album data is ignored."""
+    rec = _rec()
+    candidate = Candidate("Traffic", "Glad")  # kind defaults to TRACK
+    curator = Curator(FakeMetadataProvider(
+        recordings={"Glad": rec},
+        albums={"Glad": _album(title="Glad")},  # album present — must not be chosen
+    ))
+    golden = curator.curate(_brief(), [candidate])
+    entry = golden.entries[0]
+    assert isinstance(entry.item, Recording)
+    assert entry.item.title == "Glad"

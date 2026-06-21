@@ -12,7 +12,7 @@ from dataclasses import dataclass
 
 from .ports import MetadataProvider
 from .album import Album
-from .recording import Candidate, Recording
+from .recording import Candidate, Recording, Kind
 from .brief import Brief
 from .criteria import Verdict
 from .ranking import RecordingRanking, PreferStudioEarliest
@@ -49,12 +49,21 @@ class Curator:
         return GoldenPlaylist(brief.name, brief, entries)
 
     def _entry(self, brief: Brief, candidate: Candidate, provenance: Provenance) -> GoldenEntry:
+        if candidate.kind is Kind.ALBUM:
+            return self._album_entry(candidate, provenance)
         recordings = self._metadata.recordings_for(candidate)
         if not recordings:
             miss = Recording(artist=candidate.artist, title=candidate.title)
             return GoldenEntry(miss, provenance, Verdict.rejected("no recording found"))
         chosen = self._choose(brief, recordings)
         return GoldenEntry(chosen, provenance, brief.judge(chosen))
+
+    def _album_entry(self, candidate: Candidate, provenance: Provenance) -> GoldenEntry:
+        albums = self._metadata.albums_for(candidate)
+        if not albums:
+            miss = Album(artist=candidate.artist, title=candidate.title)
+            return GoldenEntry(miss, provenance, Verdict.rejected("no album found"))
+        return GoldenEntry(albums[0], provenance, Verdict.ok())
 
     def _choose(self, brief: Brief, recordings: list[Recording]) -> Recording:
         admissible = [r for r in recordings if brief.judge(r).admitted]
