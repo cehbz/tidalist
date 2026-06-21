@@ -4,7 +4,8 @@ from tidalist.core.ranking import PreferOriginal
 
 
 def _rec(performance, year):
-    return Recording(None, performance, (Credit("Steve Winwood", "performer"),), year)
+    return Recording(artist="Steve Winwood", title="Glad", performance=performance,
+                     credits=(Credit("Steve Winwood", "performer"),), first_released=year)
 
 
 def _track(edition=Edition.ORIGINAL, year=1970):

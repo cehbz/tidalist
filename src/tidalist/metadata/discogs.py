@@ -1,20 +1,25 @@
 """Map discogs_client results to core Recordings, and serve them through MetadataProvider.
 
-Discogs is release-centric: it yields a coarse Recording (year, live-or-not, release
-artists as performers). It does not expose ISRC, so isrc stays None.
+Discogs is release-centric: a search result is a release, not a recording, so it cannot
+supply a track title or ISRC. The recording's title/artist come from the Candidate; the
+release supplies edition-grade facts (album, year, live-or-not, release artists).
+`recordings_for` discovers; it does not select.
 """
 
 from ..core.recording import Candidate, Credit, Recording, Performance
 from .rate_limit import MinInterval
 
 
-def recording_from_discogs(result) -> Recording:
+def recording_from_discogs(result, candidate: Candidate) -> Recording:
     return Recording(
+        artist=candidate.artist,
+        title=candidate.title,
         isrc=None,
+        album=getattr(result, "title", None) or None,
+        first_released=_year(result),
         performance=_performance(result),
         credits=tuple(Credit(a.name, "performer")
                       for a in getattr(result, "artists", None) or []),
-        first_released=_year(result),
     )
 
 
@@ -45,9 +50,8 @@ class DiscogsMetadata:
         self._client = client
         self._limiter = limiter or MinInterval(rate_limit)
 
-    def recording_for(self, candidate: Candidate) -> Recording | None:
+    def recordings_for(self, candidate: Candidate) -> list[Recording]:
         self._limiter.wait()
         query = f"{candidate.artist} {candidate.title}"
-        for result in self._client.search(query, type="release"):
-            return recording_from_discogs(result)
-        return None
+        return [recording_from_discogs(r, candidate)
+                for r in self._client.search(query, type="release")]

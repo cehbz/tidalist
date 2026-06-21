@@ -20,7 +20,10 @@ class Resolver:
         self._metadata = metadata
 
     def resolve(self, candidate: Candidate, brief: Brief, provenance: Provenance) -> Proposal:
-        recording = self._metadata.recording_for(candidate) if self._metadata else None
+        # Transitional: take the first discovered recording. The golden Curator (Phase B)
+        # replaces this with brief-driven discrimination over the full recordings_for list.
+        recordings = self._metadata.recordings_for(candidate) if self._metadata else []
+        recording = recordings[0] if recordings else None
         track = self._find_track(candidate, brief, recording)
         if track is None:
             return Proposal(candidate, None, recording,
@@ -51,8 +54,12 @@ class Resolver:
     def _recording_from(track: Track) -> Recording:
         """Fallback recording with no MetadataProvider: trust the track."""
         return Recording(
+            artist=track.artists[0] if track.artists else "",
+            title=track.title,
             isrc=track.isrc,
+            album=track.album,
+            first_released=track.year,
+            duration_s=track.duration_s,
             performance=Performance.UNKNOWN,
             credits=tuple(Credit(a, "performer") for a in track.artists),
-            first_released=track.year,
         )

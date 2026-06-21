@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from enum import StrEnum
 
-from .identifiers import ISRC
+from .identifiers import ISRC, MBID
 
 
 class Performance(StrEnum):
@@ -23,10 +23,17 @@ class Credit:
 
 @dataclass(frozen=True, slots=True)
 class Recording:
-    isrc: ISRC | None
-    performance: Performance
-    credits: tuple[Credit, ...]
-    first_released: int | None
+    """A specific performance. Identity: mbid (primary) + isrc (realization bridge);
+    artist/title/album/first_released/duration_s for human display and fuzzy fallback."""
+    artist: str
+    title: str
+    mbid: MBID | None = None
+    isrc: ISRC | None = None
+    album: str | None = None
+    first_released: int | None = None
+    duration_s: int | None = None
+    performance: Performance = Performance.UNKNOWN
+    credits: tuple[Credit, ...] = ()
 
     def is_live(self) -> bool:
         return self.performance is Performance.LIVE

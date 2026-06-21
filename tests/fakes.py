@@ -42,5 +42,6 @@ class FakeMetadataProvider:
         # keyed by candidate title (case-insensitive)
         self._by_title = {k.casefold(): v for k, v in recordings.items()}
 
-    def recording_for(self, candidate: Candidate) -> Recording | None:
-        return self._by_title.get(candidate.title.casefold())
+    def recordings_for(self, candidate: Candidate) -> list[Recording]:
+        rec = self._by_title.get(candidate.title.casefold())
+        return [rec] if rec is not None else []

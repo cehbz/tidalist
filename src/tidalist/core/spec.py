@@ -4,7 +4,7 @@ Criteria and ranking are a closed discriminated union (a `type` tag), so the age
 emits only known rule types, we validate by tag, and we never eval model output.
 """
 
-from .identifiers import ISRC, TrackId
+from .identifiers import ISRC, MBID, TrackId
 from .recording import Candidate, Credit, Recording, Performance
 from .catalog import Edition, Track
 from .criteria import PerformedBy, Studio, Criterion, Verdict
@@ -77,21 +77,29 @@ def _track_from_dict(d: dict | None) -> Track | None:
 def _recording_to_dict(r: Recording | None) -> dict | None:
     if r is None:
         return None
-    return {"isrc": r.isrc, "performance": r.performance.value,
-            "credits": [{"artist": c.artist, "role": c.role} for c in r.credits],
-            "first_released": r.first_released}
+    return {"artist": r.artist, "title": r.title, "mbid": r.mbid, "isrc": r.isrc,
+            "album": r.album, "first_released": r.first_released,
+            "duration_s": r.duration_s, "performance": r.performance.value,
+            "credits": [{"artist": c.artist, "role": c.role} for c in r.credits]}
 
 
 def _recording_from_dict(d: dict | None) -> Recording | None:
     if d is None:
         return None
-    return Recording(_isrc(d.get("isrc")), Performance(d["performance"]),
-                     tuple(Credit(c["artist"], c["role"]) for c in d.get("credits", [])),
-                     d.get("first_released"))
+    return Recording(
+        artist=d["artist"], title=d["title"], mbid=_mbid(d.get("mbid")),
+        isrc=_isrc(d.get("isrc")), album=d.get("album"),
+        first_released=d.get("first_released"), duration_s=d.get("duration_s"),
+        performance=Performance(d["performance"]),
+        credits=tuple(Credit(c["artist"], c["role"]) for c in d.get("credits", [])))
 
 
 def _isrc(value):
     return ISRC(value) if value is not None else None
+
+
+def _mbid(value):
+    return MBID(value) if value is not None else None
 
 
 # --- top level ---------------------------------------------------------------

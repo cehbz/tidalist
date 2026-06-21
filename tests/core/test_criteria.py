@@ -3,7 +3,7 @@ from tidalist.core.criteria import Verdict, PerformedBy, Studio
 
 
 def _rec(performance=Performance.STUDIO, artist="Steve Winwood"):
-    return Recording(isrc=None, performance=performance,
+    return Recording(artist=artist, title="Glad", performance=performance,
                      credits=(Credit(artist, "performer"),), first_released=1970)
 
 

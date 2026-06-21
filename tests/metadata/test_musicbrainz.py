@@ -2,21 +2,61 @@ from tidalist.core.recording import Candidate, Performance
 from tidalist.metadata.musicbrainz import recording_from_musicbrainz, MusicBrainzMetadata
 
 
-def _rec(disambiguation="", isrcs=("GBABC1234567",), dates=("1970-07-01", "1985-01-01")):
+def _rec(disambiguation="", isrcs=("GBABC1234567",), dates=("1970-07-01", "1985-01-01"),
+         length="386000"):
     return {
         "id": "rec-1",
         "title": "Glad",
+        "length": length,
         "artist-credit": [{"artist": {"name": "Traffic"}}, " feat. ",
                           {"artist": {"name": "Steve Winwood"}}],
         "artist-credit-phrase": "Traffic feat. Steve Winwood",
         "isrc-list": list(isrcs),
-        "release-list": [{"id": f"r{i}", "date": d} for i, d in enumerate(dates)],
+        "release-list": [{"id": f"r{i}", "title": "John Barleycorn Must Die", "date": d}
+                         for i, d in enumerate(dates)],
         "artist-relation-list": [{"type": "keyboard", "artist": {"name": "Steve Winwood"}}],
         "disambiguation": disambiguation,
     }
 
 
+# A search hit is lighter than a full recording: no isrc-list, no artist-relation-list.
+def _hit(id="rec-1", title="Glad", disambiguation=""):
+    return {
+        "id": id,
+        "title": title,
+        "length": "386000",
+        "artist-credit": [{"artist": {"name": "Traffic"}}],
+        "artist-credit-phrase": "Traffic",
+        "release-list": [{"id": "r0", "title": "John Barleycorn Must Die", "date": "1970-07-01"}],
+        "disambiguation": disambiguation,
+    }
+
+
 # --- recording_from_musicbrainz ---
+
+def test_mbid_from_recording_id():
+    assert recording_from_musicbrainz(_rec()).mbid == "rec-1"
+
+
+def test_title_mapped():
+    assert recording_from_musicbrainz(_rec()).title == "Glad"
+
+
+def test_artist_from_credit_phrase():
+    assert recording_from_musicbrainz(_rec()).artist == "Traffic feat. Steve Winwood"
+
+
+def test_album_from_first_release_title():
+    assert recording_from_musicbrainz(_rec()).album == "John Barleycorn Must Die"
+
+
+def test_duration_from_length_milliseconds():
+    assert recording_from_musicbrainz(_rec(length="386000")).duration_s == 386
+
+
+def test_duration_none_when_length_absent():
+    assert recording_from_musicbrainz(_rec(length=None)).duration_s is None
+
 
 def test_isrc_is_first_in_list():
     assert recording_from_musicbrainz(_rec()).isrc == "GBABC1234567"
@@ -49,12 +89,11 @@ def test_studio_default_is_unknown():
     assert recording_from_musicbrainz(_rec()).performance is Performance.UNKNOWN
 
 
-# --- MusicBrainzMetadata.recording_for ---
+# --- MusicBrainzMetadata.recordings_for ---
 
 class _FakeMB:
-    def __init__(self, search_list, full=None):
+    def __init__(self, search_list):
         self._search = search_list
-        self._full = full
         self.calls = []
 
     def search_recordings(self, query="", limit=None, **fields):
@@ -63,17 +102,29 @@ class _FakeMB:
 
     def get_recording_by_id(self, id, includes=None, **kw):
         self.calls.append(("get", id, tuple(includes or [])))
-        return {"recording": self._full}
+        return {"recording": {}}
 
 
-def test_recording_for_searches_then_fetches_and_maps():
-    mb = _FakeMB([{"id": "rec-1"}], full=_rec())
-    rec = MusicBrainzMetadata(mb).recording_for(Candidate("Traffic", "Glad"))
-    assert rec.isrc == "GBABC1234567"
-    assert rec.first_released == 1970
-    assert mb.calls[0] == ("search", {"artist": "Traffic", "recording": "Glad"}, 1)
-    assert mb.calls[1][1] == "rec-1"
+def test_recordings_for_maps_every_hit_in_order_without_selecting():
+    mb = _FakeMB([_hit(id="a", title="Glad"),
+                  _hit(id="b", title="Glad", disambiguation="live")])
+    recs = MusicBrainzMetadata(mb).recordings_for(Candidate("Traffic", "Glad"))
+    assert [r.mbid for r in recs] == ["a", "b"]
+    assert recs[1].performance is Performance.LIVE
 
 
-def test_recording_for_none_when_no_search_hits():
-    assert MusicBrainzMetadata(_FakeMB([])).recording_for(Candidate("X", "Y")) is None
+def test_recordings_for_is_discovery_only_no_full_fetch():
+    mb = _FakeMB([_hit()])
+    recs = MusicBrainzMetadata(mb).recordings_for(Candidate("Traffic", "Glad"))
+    assert recs[0].isrc is None                        # ISRC is fetched lazily, not at discovery
+    assert [c[0] for c in mb.calls] == ["search"]      # never calls get_recording_by_id
+
+
+def test_recordings_for_searches_by_artist_and_title():
+    mb = _FakeMB([_hit()])
+    MusicBrainzMetadata(mb).recordings_for(Candidate("Traffic", "Glad"))
+    assert mb.calls[0][1] == {"artist": "Traffic", "recording": "Glad"}
+
+
+def test_recordings_for_empty_when_no_hits():
+    assert MusicBrainzMetadata(_FakeMB([])).recordings_for(Candidate("X", "Y")) == []

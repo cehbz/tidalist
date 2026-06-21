@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from tidalist.core.identifiers import ISRC
+from tidalist.core.identifiers import ISRC, MBID
 from tidalist.core.recording import Candidate, Credit, Recording, Performance
 from tidalist.core.catalog import Edition, Track
 from tidalist.core.criteria import PerformedBy, Studio, Verdict
@@ -14,8 +14,10 @@ from tidalist.core.spec import to_spec, from_spec
 
 def _example():
     brief = Brief("Winwood", (PerformedBy("Steve Winwood"), Studio()), PreferOriginal())
-    rec = Recording(ISRC("GBABC1234567"), Performance.STUDIO,
-                    (Credit("Steve Winwood", "performer"),), 1970)
+    rec = Recording(artist="Traffic", title="Glad", mbid=MBID("rec-1"),
+                    isrc=ISRC("GBABC1234567"), album="John Barleycorn Must Die",
+                    first_released=1970, duration_s=386, performance=Performance.STUDIO,
+                    credits=(Credit("Steve Winwood", "performer"),))
     track = Track(id="S", title="Glad", artists=("Traffic",), isrc=ISRC("GBABC1234567"),
                   album="John Barleycorn Must Die", year=1970, edition=Edition.ORIGINAL)
     proposals = [Proposal(

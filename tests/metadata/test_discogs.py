@@ -3,49 +3,62 @@ from types import SimpleNamespace
 from tidalist.core.recording import Candidate, Performance
 from tidalist.metadata.discogs import recording_from_discogs, DiscogsMetadata
 
+CAND = Candidate("Traffic", "Glad", album="John Barleycorn Must Die")
 
-def _result(artists=("Traffic",), formats=None, year=1970):
+
+def _result(artists=("Traffic",), formats=None, year=1970, title="John Barleycorn Must Die"):
     return SimpleNamespace(
         artists=[SimpleNamespace(name=a) for a in artists],
         formats=formats if formats is not None else [{"name": "Vinyl", "descriptions": ["LP", "Album"]}],
         year=year,
+        title=title,
     )
 
 
-# --- recording_from_discogs ---
+# --- recording_from_discogs (release-level: title/artist come from the candidate) ---
 
-def test_maps_artists_to_performer_credits():
-    rec = recording_from_discogs(_result(artists=("Traffic", "Steve Winwood")))
+def test_title_and_artist_come_from_candidate():
+    rec = recording_from_discogs(_result(), CAND)
+    assert rec.title == "Glad" and rec.artist == "Traffic"
+
+
+def test_album_from_release_title():
+    assert recording_from_discogs(_result(title="John Barleycorn Must Die"), CAND).album \
+        == "John Barleycorn Must Die"
+
+
+def test_maps_release_artists_to_performer_credits():
+    rec = recording_from_discogs(_result(artists=("Traffic", "Steve Winwood")), CAND)
     assert [c.artist for c in rec.credits] == ["Traffic", "Steve Winwood"]
     assert all(c.role == "performer" for c in rec.credits)
 
 
 def test_first_released_from_int_year():
-    assert recording_from_discogs(_result(year=1970)).first_released == 1970
+    assert recording_from_discogs(_result(year=1970), CAND).first_released == 1970
 
 
 def test_first_released_from_string_year():
-    assert recording_from_discogs(_result(year="1970")).first_released == 1970
+    assert recording_from_discogs(_result(year="1970"), CAND).first_released == 1970
 
 
 def test_missing_year_is_none():
-    assert recording_from_discogs(_result(year=0)).first_released is None
+    assert recording_from_discogs(_result(year=0), CAND).first_released is None
 
 
 def test_live_format_sets_performance_live():
     r = _result(formats=[{"name": "CD", "descriptions": ["Album", "Live"]}])
-    assert recording_from_discogs(r).performance is Performance.LIVE
+    assert recording_from_discogs(r, CAND).performance is Performance.LIVE
 
 
 def test_non_live_format_is_unknown_performance():
-    assert recording_from_discogs(_result()).performance is Performance.UNKNOWN
+    assert recording_from_discogs(_result(), CAND).performance is Performance.UNKNOWN
 
 
 def test_isrc_is_none():
-    assert recording_from_discogs(_result()).isrc is None
+    assert recording_from_discogs(_result(), CAND).isrc is None
 
 
-# --- DiscogsMetadata.recording_for ---
+# --- DiscogsMetadata.recordings_for ---
 
 class _FakeClient:
     def __init__(self, results):
@@ -57,24 +70,24 @@ class _FakeClient:
         return self._results
 
 
-def test_recording_for_maps_first_result():
+def test_recordings_for_maps_every_result_without_selecting():
     client = _FakeClient([_result(year=1970), _result(year=2005)])
-    rec = DiscogsMetadata(client).recording_for(Candidate("Traffic", "Glad"))
-    assert rec.first_released == 1970
+    recs = DiscogsMetadata(client).recordings_for(Candidate("Traffic", "Glad"))
+    assert [r.first_released for r in recs] == [1970, 2005]
     assert client.queries == [("Traffic Glad", "release")]
 
 
-def test_recording_for_none_when_no_results():
-    assert DiscogsMetadata(_FakeClient([])).recording_for(Candidate("X", "Y")) is None
+def test_recordings_for_empty_when_no_results():
+    assert DiscogsMetadata(_FakeClient([])).recordings_for(Candidate("X", "Y")) == []
 
 
-def test_recording_for_waits_on_the_limiter():
+def test_recordings_for_waits_on_the_limiter():
     calls = []
 
     class _Limiter:
         def wait(self):
             calls.append(1)
 
-    DiscogsMetadata(_FakeClient([_result()]), limiter=_Limiter()).recording_for(
+    DiscogsMetadata(_FakeClient([_result()]), limiter=_Limiter()).recordings_for(
         Candidate("Traffic", "Glad"))
     assert calls == [1]

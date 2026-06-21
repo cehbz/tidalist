@@ -28,10 +28,11 @@ def test_publish_adds_only_admitted_deduped_and_ordered():
     glad = Track(id="S", title="Glad", artists=("Traffic",))
     cover = Track(id="C", title="Feelin Alright", artists=("Joe Cocker",))
     recs = {
-        "Glad": Recording(None, Performance.STUDIO,
-                          (Credit("Steve Winwood", "performer"),), 1970),
-        "Feelin Alright": Recording(None, Performance.STUDIO,
-                                    (Credit("Joe Cocker", "performer"),), 1969),
+        "Glad": Recording(artist="Traffic", title="Glad", performance=Performance.STUDIO,
+                          credits=(Credit("Steve Winwood", "performer"),), first_released=1970),
+        "Feelin Alright": Recording(artist="Joe Cocker", title="Feelin Alright",
+                                    performance=Performance.STUDIO,
+                                    credits=(Credit("Joe Cocker", "performer"),), first_released=1969),
     }
     cat = FakeCatalog([glad, cover])
     proposals = Curator(Resolver(cat, FakeMetadataProvider(recs))).draft(

@@ -98,7 +98,7 @@ tests/         mirror; core/ pure + fast; adapter integration marked @pytest.mar
 
 ## Status (2026-06-21)
 
-Phases 1-4 built and offline-green (138 passed, 1 skipped). **Phase 4 is uncommitted at this session handoff** (config/auth/limiter + legacy-auth deletion); last commit is `cd300ba` (Phase 3 MB).
+Phases 1-4 committed (last commit `c3d6e5c`). **Phase A done, offline-green (151 passed, 1 skipped):** `Recording` carries the identity bundle (`mbid` + `artist/title/album/first_released/duration_s` + `isrc/performance/credits`); `MBID` identifier added; `MetadataProvider.recordings_for(candidate) -> list[Recording]` — MB and Discogs return every hit, no in-adapter pick. MB discovery is cheap (one search, no per-hit `get_recording_by_id`); ISRC stays `None` at discovery and is enriched lazily once a recording is chosen (Phase B). Discogs is release-level, so its mapper takes the candidate for title/artist. `spec.py` round-trips the new fields. `Resolver` has a transitional first-of-list pick (marked) until the Curator lands. **Resume at Phase B.**
 
 Live verification (read paths): **Tidal ✓** (real search; datetime→int year confirmed on live data; `track_by_isrc` works), **Discogs ✓** (`formats` shape matches; year correct), **MusicBrainz: selection defect** — `search_recordings(limit=1)` + `[0]` grabbed a live bootleg (tied score-100 hits) with no ISRC/date. This is *superseded* by the golden-first redesign: MB returns `recordings_for` (a list) and the Curator discriminates via the brief; no in-adapter pick.
 
@@ -110,7 +110,7 @@ The current application layer (`Resolver`, `Proposal`, `PlaylistDraft`, `Curator
 
 **Forward:**
 
-- **A. Metadata returns candidates.** `MetadataProvider.recordings_for(candidate) -> list[Recording]`. Reshape MB (return hits, no `[0]` pick; carry `disambiguation`→performance, `artist-credit`→credits cheaply, fetch ISRC/MBID lazily) and Discogs. Add `mbid` + title/artist/album/duration to `Recording`.
+- **A. Metadata returns candidates. ✅ DONE.** `MetadataProvider.recordings_for(candidate) -> list[Recording]`; MB returns all search hits (cheap, no `[0]` pick, ISRC enriched lazily in B), Discogs returns all releases (mapper takes the candidate for title/artist). `Recording` gained `mbid` + `title/artist/album/duration_s`; `MBID` identifier added; `spec.py` round-trips them. `Resolver` carries a transitional first-of-list pick until the Curator replaces it.
 - **B. Golden stage.** `GoldenPlaylist` + `Curator` (candidates + metadata + brief → recordings; discriminate with criteria + recording-ranking). `spec.py` golden JSON persistence (load/save the portable artifact).
 - **C. Realizer port + Tidal realizer.** Define `Realizer`; fold today's `TidalCatalog` into `realize/tidal.py` (resolve by ISRC then closeness; emit = create playlist + add). Produce `Realization` + gaps.
 - **D. NL front-end + CLI.** Agent-driven verbs over the golden + realization artifacts: build golden from a brief, review, realize, publish. Presentation here only.

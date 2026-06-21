@@ -29,8 +29,10 @@ def test_resolves_by_isrc_when_present():
 
 def test_rejects_a_cover_when_required_performer_absent():
     track = Track(id="1", title="Feelin Alright", artists=("Joe Cocker",))
-    recs = {"Feelin Alright": Recording(None, Performance.STUDIO,
-                                        (Credit("Joe Cocker", "performer"),), 1969)}
+    recs = {"Feelin Alright": Recording(artist="Joe Cocker", title="Feelin Alright",
+                                        performance=Performance.STUDIO,
+                                        credits=(Credit("Joe Cocker", "performer"),),
+                                        first_released=1969)}
     resolver = Resolver(FakeCatalog([track]), FakeMetadataProvider(recs))
     p = _resolve(resolver, Candidate("Joe Cocker", "Feelin Alright"),
                  _brief(PerformedBy("Steve Winwood")))
@@ -44,7 +46,8 @@ def test_prefers_original_edition_among_search_hits():
                      album="John Barleycorn Must Die", edition=Edition.ORIGINAL, year=1970)
     comp = Track(id="C", title="Glad", artists=("Traffic",),
                  album="Gold", edition=Edition.COMPILATION, year=2005)
-    recs = {"Glad": Recording(None, Performance.STUDIO, WINWOOD, 1970)}
+    recs = {"Glad": Recording(artist="Traffic", title="Glad", performance=Performance.STUDIO,
+                              credits=WINWOOD, first_released=1970)}
     resolver = Resolver(FakeCatalog([comp, original]), FakeMetadataProvider(recs))
     p = _resolve(resolver, Candidate("Traffic", "Glad"), _brief(PerformedBy("Steve Winwood")))
     assert p.track.id == "O" and p.admissible

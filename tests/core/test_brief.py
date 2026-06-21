@@ -6,7 +6,8 @@ from tidalist.core.brief import Brief
 
 
 def _rec(performance=Performance.STUDIO, artist="Steve Winwood"):
-    return Recording(None, performance, (Credit(artist, "performer"),), 1970)
+    return Recording(artist=artist, title="Glad", performance=performance,
+                     credits=(Credit(artist, "performer"),), first_released=1970)
 
 
 def _brief(*criteria):

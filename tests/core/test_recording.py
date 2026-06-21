@@ -1,12 +1,37 @@
 import pytest
 
+from tidalist.core.identifiers import ISRC, MBID
 from tidalist.core.recording import Performance, Credit, Recording, Candidate
 
 
 def _recording(performance=Performance.STUDIO,
-               credits=(Credit("Steve Winwood", "performer"),)):
-    return Recording(isrc=None, performance=performance, credits=credits,
-                     first_released=1970)
+               credits=(Credit("Steve Winwood", "performer"),), **kw):
+    return Recording(artist="Steve Winwood", title="Glad", performance=performance,
+                     credits=credits, first_released=1970, **kw)
+
+
+def test_recording_carries_identity_bundle_fields():
+    rec = _recording(mbid=MBID("rec-123"), isrc=ISRC("GBABC1234567"),
+                     album="John Barleycorn Must Die", duration_s=386)
+    assert rec.mbid == "rec-123"
+    assert rec.isrc == "GBABC1234567"
+    assert rec.artist == "Steve Winwood"
+    assert rec.title == "Glad"
+    assert rec.album == "John Barleycorn Must Die"
+    assert rec.duration_s == 386
+
+
+def test_recording_requires_artist_and_title():
+    # artist/title are the human-readable identity; they have no default.
+    with pytest.raises(TypeError):
+        Recording(performance=Performance.STUDIO)
+
+
+def test_recording_optional_fields_default():
+    rec = Recording(artist="Traffic", title="Glad")
+    assert rec.mbid is None and rec.isrc is None and rec.album is None
+    assert rec.first_released is None and rec.duration_s is None
+    assert rec.performance is Performance.UNKNOWN and rec.credits == ()
 
 
 def test_live_recording_is_live():
