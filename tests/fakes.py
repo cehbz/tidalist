@@ -11,10 +11,11 @@ from tidalist.core.recording import Candidate, Recording
 
 
 class FakeCatalog:
-    def __init__(self, tracks, albums=(), album_track_map=None):
+    def __init__(self, tracks, albums=(), album_track_map=None, album_editions_map=None):
         self._tracks = list(tracks)
         self._albums = list(albums)
         self._album_track_map: dict[str, list[Track]] = dict(album_track_map or {})
+        self._album_editions_map: dict[str, list[CatalogAlbum]] = dict(album_editions_map or {})
         self.playlists: dict[str, list] = {}
         self._n = 0
 
@@ -50,6 +51,9 @@ class FakeCatalog:
 
     def album_tracks(self, album_id: TrackId) -> list[Track]:
         return list(self._album_track_map.get(str(album_id), []))
+
+    def album_editions(self, album_id: TrackId) -> list[CatalogAlbum]:
+        return list(self._album_editions_map.get(str(album_id), []))
 
 
 class FakeMetadataProvider:

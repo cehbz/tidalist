@@ -48,3 +48,46 @@ def test_fake_metadata_provider_recordings_positional_still_works():
     candidate = Candidate(artist="Talk Talk", title="Desire")
     provider = FakeMetadataProvider({"Desire": rec})
     assert provider.recordings_for(candidate) == [rec]
+
+
+# --- FakeCatalog.album_editions ---
+
+def _make_catalog_album(id_str: str, title: str) -> "CatalogAlbum":
+    from tidalist.core.catalog import CatalogAlbum
+    from tidalist.core.identifiers import TrackId
+    return CatalogAlbum(id=TrackId(id_str), title=title, artists=("Artist",))
+
+
+def test_fake_catalog_album_editions_returns_seeded_editions():
+    from tidalist.core.identifiers import TrackId
+    anchor = _make_catalog_album("42", "Abbey Road")
+    remaster = _make_catalog_album("99", "Abbey Road (2019 Remaster)")
+    cat = FakeCatalog([], album_editions_map={"42": [anchor, remaster]})
+    assert cat.album_editions(TrackId("42")) == [anchor, remaster]
+
+
+def test_fake_catalog_album_editions_unknown_id_returns_empty():
+    from tidalist.core.identifiers import TrackId
+    cat = FakeCatalog([])
+    assert cat.album_editions(TrackId("999")) == []
+
+
+def test_fake_catalog_album_editions_no_map_returns_empty():
+    from tidalist.core.identifiers import TrackId
+    cat = FakeCatalog([], album_editions_map=None)
+    assert cat.album_editions(TrackId("1")) == []
+
+
+def test_fake_catalog_search_albums_and_editions_are_independent():
+    """search_albums sees only the 'searchable' album; album_editions returns all editions."""
+    from tidalist.core.catalog import CatalogAlbum
+    from tidalist.core.identifiers import TrackId
+    searchable = _make_catalog_album("10", "Rumours")
+    remaster = _make_catalog_album("11", "Rumours (2004 Remaster)")
+    cat = FakeCatalog(
+        [],
+        albums=[searchable],
+        album_editions_map={"10": [searchable, remaster]},
+    )
+    assert cat.search_albums("Rumours") == [searchable]
+    assert cat.album_editions(TrackId("10")) == [searchable, remaster]
