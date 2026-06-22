@@ -10,10 +10,62 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Protocol, runtime_checkable
 
+from .edition import EditionPreference
 from .identifiers import ISRC
 from .recording import Recording
 from .golden import GoldenEntry, GoldenPlaylist
 from .errors import CatalogError
+
+
+_REISSUE_MARKERS = ("reissue", "remaster", "deluxe")
+
+
+@dataclass(frozen=True, slots=True)
+class EditionOption:
+    """One available edition on a platform (`ref` is the platform handle)."""
+    ref: str
+    title: str
+    year: int | None = None
+
+
+def choose_edition(
+    options: list[EditionOption],
+    preference: EditionPreference,
+) -> tuple[EditionOption | None, str | None]:
+    """Pick the best available edition given a preference; return (chosen, compromise).
+
+    Selection order:
+    1. First marker (in order) whose casefold text appears in any option title — no compromise.
+    2. Most "original" option when prefer_original is set: lowest year (None sorts last),
+       ties broken by absence of reissue/remaster/deluxe in title.
+    3. Empty options → (None, None).
+    """
+    if not options:
+        return None, None
+
+    # Marker match: iterate markers in order; for each, find first matching option.
+    for marker in preference.markers:
+        for opt in options:
+            if marker in opt.title.casefold():
+                return opt, None
+
+    # Fallback: prefer_original
+    if preference.prefer_original:
+        def _sort_key(opt: EditionOption):
+            year_key = (1, opt.year) if opt.year is not None else (2, 0)
+            reissue_key = 1 if any(m in opt.title.casefold() for m in _REISSUE_MARKERS) else 0
+            return (year_key[0], year_key[1], reissue_key)
+
+        chosen = min(options, key=_sort_key)
+        compromise = (
+            f"preferred edition ({preference.markers[0]}) unavailable"
+            if preference.markers
+            else None
+        )
+        return chosen, compromise
+
+    # No preference applicable — return first option, no compromise.
+    return options[0], None
 
 
 class MatchQuality(StrEnum):
