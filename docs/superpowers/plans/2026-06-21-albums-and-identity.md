@@ -59,6 +59,8 @@ This intent becomes the canonical end-to-end fixture (`tests/fixtures/winwood_in
 
 ## Phases (each shippable; metadata phases are live-verify-first)
 
+> **Status:** Phases 1–6 complete on branch `albums-first` (per-phase task plans in `2026-06-21-albums-phase-{1..6}.md`). Offline suite green; the full curate → realize → publish pipeline live-verified end-to-end (a real Tidal playlist created from a live-MusicBrainz album curation, with the Steven-Wilson edition default reported as a compromise when Tidal could not honor it). The Winwood north-star runs as the offline acceptance test (`tests/test_winwood_acceptance.py`).
+
 Detailed bite-sized TDD tasks are authored per phase **at execution time** (after live-probing the relevant API shapes). Each phase ends **offline-green AND live-checked against the real API** (see Test strategy) and is independently reviewable.
 
 **Phase 1 — Album domain model + `Album | Recording` golden unit (pure, no API).**
