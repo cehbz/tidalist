@@ -6,7 +6,7 @@ emits a playlist. `realize` resolves every admitted golden entry into a `Realiza
 two are separate so gaps can be reviewed before anything is created on the platform.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import StrEnum
 from typing import Protocol, runtime_checkable
 

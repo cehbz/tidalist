@@ -34,3 +34,11 @@ original, not the 22-track deluxe). Two reliability gaps remain:
 - Edition-distance **weights** (`core/realize.py`) are first-cut constants; the
   `year=None` penalty bound and the dominance invariant are domain-bounded, not proven
   (see the P2 plan's noted minors). Revisit if real playlists misselect.
+- The `num_tracks` **coarse-shortlist** (skip fetching tracks for editions far off the
+  golden's track count) was dropped for simplicity — `resolve_album` fetches every
+  edition's tracks, and `CatalogAlbum.num_tracks` is currently unconsumed. Add the
+  shortlist if some artist's discography proves deep enough to matter.
+- `tidal/catalog.py` `album_editions` swallows all exceptions (broad `except`) to honor
+  the realizer's `or survivors` fallback; narrow it if it ever masks a real bug.
+- `_track_matches` (ISRC-present-on-ref-but-absent-on-track → title fallback) is correct
+  but lacks a dedicated unit test.
