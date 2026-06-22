@@ -1,7 +1,7 @@
 from tidalist.core.identifiers import ISRC, TrackId
 from tidalist.core.recording import Recording, Credit
 from tidalist.core.catalog import Track, CatalogAlbum
-from tidalist.core.album import Album
+from tidalist.core.album import Album, TrackRef
 from tidalist.core.edition import EditionPreference, EditionPolicy
 from tidalist.core.realize import MatchQuality, PlatformItem
 from tidalist.realize.tidal import TidalRealizer
@@ -130,3 +130,104 @@ def test_resolve_album_returns_empty_when_nothing_matches():
     )
     assert items == []
     assert compromise is None
+
+
+# --- Edition-distance / discography-enumeration tests ---
+
+def _track_ref(position, title, isrc=None):
+    return TrackRef(position=position, title=title, isrc=isrc)
+
+
+def _golden_album(artist="Traffic", title="Mr. Fantasy", first_released=1967,
+                  tracklist=()):
+    return Album(artist=artist, title=title, first_released=first_released,
+                 tracklist=tracklist)
+
+
+def test_resolve_album_prefers_edition_nearest_golden_tracklist():
+    """The Mr. Fantasy scenario: search returns one anchor edition; album_editions yields
+    a 10-track and a 22-track; with a 10-track golden tracklist the 10-track edition
+    must win (lower track-count and missing-track penalty).
+    """
+    # Build a golden with 10 canonical tracks.
+    golden_tracks = tuple(
+        _track_ref(i, f"Track {i}") for i in range(1, 11)
+    )
+    golden = _golden_album(tracklist=golden_tracks)
+
+    anchor_id = "A-anchor"
+    edition_10_id = "A-10track"
+    edition_22_id = "A-22track"
+
+    anchor = _album(id=anchor_id, title="Mr. Fantasy", artists=("Traffic",), year=1967)
+    ed10 = _album(id=edition_10_id, title="Mr. Fantasy", artists=("Traffic",), year=1967)
+    ed22 = _album(id=edition_22_id, title="Mr. Fantasy (Expanded)", artists=("Traffic",), year=2001)
+
+    tracks_10 = [_album_track(f"T{i}", f"Track {i}") for i in range(1, 11)]
+    tracks_22 = [_album_track(f"E{i}", f"Track {i}") for i in range(1, 23)]
+
+    cat = FakeCatalog(
+        [],
+        albums=[anchor],
+        album_track_map={
+            edition_10_id: tracks_10,
+            edition_22_id: tracks_22,
+        },
+        album_editions_map={
+            anchor_id: [ed10, ed22],
+        },
+    )
+    items, compromise = TidalRealizer(cat).resolve_album(golden, EditionPolicy.default())
+    assert [i.ref for i in items] == [f"T{n}" for n in range(1, 11)]
+    assert all(i.quality is MatchQuality.STRONG for i in items)
+
+
+def test_resolve_album_multi_query_finds_via_the_stripped_artist():
+    """When the verbatim artist+title search yields nothing, the The-stripped query
+    should find the anchor and still resolve.
+    """
+    anchor = _album(id="A1", title="John Barleycorn Must Die",
+                    artists=("Traffic",), year=1970)
+    tracks = [_album_track("T1", "Glad"), _album_track("T2", "Freedom Rider")]
+    # Only the the-stripped query ("Traffic John Barleycorn Must Die") would match here
+    # if the verbatim artist were "The Traffic". We simulate: only albums matching
+    # "traffic john barleycorn" — "the traffic" stripped of "the " becomes "traffic".
+    the_traffic_album = Album(artist="The Traffic", title="John Barleycorn Must Die")
+    cat = FakeCatalog(
+        [],
+        albums=[anchor],
+        album_track_map={"A1": tracks},
+    )
+    items, _ = TidalRealizer(cat).resolve_album(the_traffic_album, EditionPolicy.default())
+    assert [i.ref for i in items] == ["T1", "T2"]
+
+
+def test_resolve_album_title_only_query_finds_anchor_when_artist_queries_fail():
+    """When the artist+title queries find nothing, the title-only fallback (still
+    artist-filtered) finds the anchor. The domain artist 'unknown traffic' has a token
+    ('unknown') absent from the catalog, so the verbatim query fails; the title-only
+    query matches, and the artist filter passes since 'traffic' ⊆ 'unknown traffic'.
+    """
+    anchor = _album(id="A1", title="John Barleycorn Must Die",
+                    artists=("Traffic",), year=1970)
+    cat = FakeCatalog([], albums=[anchor],
+                      album_track_map={"A1": [_album_track("T1", "Glad")]})
+    album = Album(artist="unknown traffic", title="John Barleycorn Must Die")
+    items, _ = TidalRealizer(cat).resolve_album(album, EditionPolicy.default())
+    assert [i.ref for i in items] == ["T1"]
+
+
+def test_resolve_album_editions_empty_falls_back_to_survivors():
+    """When album_editions returns empty, resolve_album falls back to search survivors
+    (same as old behaviour) — existing edge case must remain green.
+    """
+    original = _album(id="A-orig", title="John Barleycorn Must Die", year=1970)
+    tracks = [_album_track("T1", "Glad")]
+    # album_editions_map is empty → falls back to survivors
+    cat = FakeCatalog(
+        [],
+        albums=[original],
+        album_track_map={"A-orig": tracks},
+    )
+    items, _ = TidalRealizer(cat).resolve_album(_domain_album(), EditionPolicy.default())
+    assert [i.ref for i in items] == ["T1"]

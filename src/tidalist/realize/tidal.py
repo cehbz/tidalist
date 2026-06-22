@@ -34,22 +34,46 @@ class TidalRealizer:
         album: Album,
         preference: EditionPreference,
     ) -> tuple[list[PlatformItem], str | None]:
-        candidates = self._catalog.search_albums(f"{album.artist} {album.title}")
-        survivors = [
-            c for c in candidates
-            if _artist_match_album(album.artist, c.artists)
-            and _title_match_album(album.title, c.title)
-        ]
+        survivors = self._search_survivors(album)
         if not survivors:
             return [], None
-        options = [EditionOption(ref=str(c.id), title=c.title, year=c.year)
-                   for c in survivors]
-        chosen, compromise = choose_edition(options, preference)
+        anchor = survivors[0]
+        # The discography gives the full edition set; fall back to the search
+        # survivors when it's empty (so `editions` is always non-empty here).
+        editions = self._catalog.album_editions(anchor.id) or survivors
+        if album.tracklist:
+            options = [
+                EditionOption(
+                    ref=str(e.id),
+                    title=e.title,
+                    year=e.year,
+                    tracks=tuple(self._catalog.album_tracks(e.id)),
+                )
+                for e in editions
+            ]
+        else:
+            options = [
+                EditionOption(ref=str(e.id), title=e.title, year=e.year)
+                for e in editions
+            ]
+        chosen, compromise = choose_edition(options, preference, album)
         if chosen is None:
             return [], None
-        tracks = self._catalog.album_tracks(TrackId(chosen.ref))
+        tracks = chosen.tracks or tuple(self._catalog.album_tracks(TrackId(chosen.ref)))
         items = [_item(t, MatchQuality.STRONG) for t in tracks]
         return items, compromise
+
+    def _search_survivors(self, album: Album):
+        for query in _anchor_queries(album):
+            hits = self._catalog.search_albums(query)
+            survivors = [
+                c for c in hits
+                if _artist_match_album(album.artist, c.artists)
+                and _title_match_album(album.title, c.title)
+            ]
+            if survivors:
+                return survivors
+        return []
 
     def emit(self, name: str, items: list[PlatformItem]) -> str:
         playlist = self._catalog.create_playlist(name)
@@ -59,6 +83,24 @@ class TidalRealizer:
 
 def _query(recording: Recording) -> str:
     return f"{recording.artist} {recording.title}".strip()
+
+
+def _strip_leading_the(s: str) -> str:
+    return s[4:] if s.casefold().startswith("the ") else s
+
+
+def _anchor_queries(album: Album):
+    """Yield de-duplicated search queries for album, from most to least specific."""
+    seen: set[str] = set()
+    candidates = [
+        f"{album.artist} {album.title}",
+        f"{_strip_leading_the(album.artist)} {album.title}",
+        album.title,
+    ]
+    for q in candidates:
+        if q not in seen:
+            seen.add(q)
+            yield q
 
 
 def _item(track: Track, quality: MatchQuality) -> PlatformItem:
