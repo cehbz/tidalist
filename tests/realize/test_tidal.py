@@ -1,6 +1,8 @@
 from tidalist.core.identifiers import ISRC, TrackId
 from tidalist.core.recording import Recording, Credit
-from tidalist.core.catalog import Track
+from tidalist.core.catalog import Track, CatalogAlbum
+from tidalist.core.album import Album
+from tidalist.core.edition import EditionPreference, EditionPolicy
 from tidalist.core.realize import MatchQuality, PlatformItem
 from tidalist.realize.tidal import TidalRealizer
 from tests.fakes import FakeCatalog
@@ -55,3 +57,76 @@ def test_emit_creates_a_playlist_and_adds_the_item_refs():
              PlatformItem(ref="T2", title="Dear Mr Fantasy", artists=("Traffic",))]
     ref = TidalRealizer(cat).emit("Winwood", items)
     assert cat.playlists[ref] == ["T1", "T2"]
+
+
+# --- resolve_album tests ---
+
+def _album(id="A1", title="John Barleycorn Must Die", artists=("Traffic",), year=1970):
+    return CatalogAlbum(id=TrackId(id), title=title, artists=artists, year=year)
+
+
+def _album_track(id, title, artists=("Traffic",)):
+    return Track(id=TrackId(id), title=title, artists=artists)
+
+
+def _domain_album(artist="Traffic", title="John Barleycorn Must Die"):
+    return Album(artist=artist, title=title)
+
+
+def test_resolve_album_drops_wrong_artist():
+    wrong_artist = _album(id="A-wrong", title="John Barleycorn Must Die",
+                          artists=("Some Other Band",))
+    cat = FakeCatalog(
+        [],
+        albums=[wrong_artist],
+        album_track_map={"A-wrong": [_album_track("T1", "Glad")]},
+    )
+    items, compromise = TidalRealizer(cat).resolve_album(
+        _domain_album(), EditionPolicy.default()
+    )
+    assert items == []
+    assert compromise is None
+
+
+def test_resolve_album_picks_original_over_deluxe():
+    original = _album(id="A-orig", title="John Barleycorn Must Die", year=1970)
+    deluxe = _album(id="A-deluxe", title="John Barleycorn Must Die (Deluxe Edition)", year=2004)
+    tracks = [
+        _album_track("T1", "Glad"),
+        _album_track("T2", "Freedom Rider"),
+    ]
+    cat = FakeCatalog(
+        [],
+        albums=[deluxe, original],
+        album_track_map={"A-orig": tracks, "A-deluxe": tracks[:1]},
+    )
+    items, compromise = TidalRealizer(cat).resolve_album(
+        _domain_album(), EditionPolicy.default()
+    )
+    assert [i.ref for i in items] == ["T1", "T2"]
+    assert all(i.quality is MatchQuality.STRONG for i in items)
+
+
+def test_resolve_album_returns_tracks_in_order():
+    album = _album(id="A1")
+    ordered_tracks = [
+        _album_track("T1", "Glad"),
+        _album_track("T2", "Freedom Rider"),
+        _album_track("T3", "Empty Pages"),
+    ]
+    cat = FakeCatalog(
+        [],
+        albums=[album],
+        album_track_map={"A1": ordered_tracks},
+    )
+    items, _ = TidalRealizer(cat).resolve_album(_domain_album(), EditionPolicy.default())
+    assert [i.ref for i in items] == ["T1", "T2", "T3"]
+
+
+def test_resolve_album_returns_empty_when_nothing_matches():
+    cat = FakeCatalog([], albums=[], album_track_map={})
+    items, compromise = TidalRealizer(cat).resolve_album(
+        _domain_album(), EditionPolicy.default()
+    )
+    assert items == []
+    assert compromise is None

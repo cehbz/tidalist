@@ -4,7 +4,7 @@ from typing import Protocol, runtime_checkable
 
 from .album import Album
 from .identifiers import ISRC, TrackId, PlaylistId
-from .catalog import Track
+from .catalog import Track, CatalogAlbum
 from .recording import Candidate, Recording
 
 
@@ -14,6 +14,8 @@ class Catalog(Protocol):
     def track_by_isrc(self, isrc: ISRC) -> Track | None: ...
     def create_playlist(self, name: str, description: str = "") -> PlaylistId: ...
     def add_tracks(self, playlist: PlaylistId, tracks: list[TrackId]) -> None: ...
+    def search_albums(self, query: str, limit: int = 25) -> list[CatalogAlbum]: ...
+    def album_tracks(self, album_id: TrackId) -> list[Track]: ...
 
 
 @runtime_checkable

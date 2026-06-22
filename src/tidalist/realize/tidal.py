@@ -9,7 +9,9 @@ from ..core.ports import Catalog
 from ..core.identifiers import TrackId
 from ..core.recording import Recording
 from ..core.catalog import Track
-from ..core.realize import PlatformItem, MatchQuality
+from ..core.realize import PlatformItem, MatchQuality, EditionOption, choose_edition
+from ..core.edition import EditionPreference
+from ..core.album import Album
 
 
 class TidalRealizer:
@@ -26,6 +28,28 @@ class TidalRealizer:
             return None
         best = min(hits, key=lambda t: _closeness(recording, t))
         return _item(best, _quality(recording, best))
+
+    def resolve_album(
+        self,
+        album: Album,
+        preference: EditionPreference,
+    ) -> tuple[list[PlatformItem], str | None]:
+        candidates = self._catalog.search_albums(f"{album.artist} {album.title}")
+        survivors = [
+            c for c in candidates
+            if _artist_match_album(album.artist, c.artists)
+            and _title_match_album(album.title, c.title)
+        ]
+        if not survivors:
+            return [], None
+        options = [EditionOption(ref=str(c.id), title=c.title, year=c.year)
+                   for c in survivors]
+        chosen, compromise = choose_edition(options, preference)
+        if chosen is None:
+            return [], None
+        tracks = self._catalog.album_tracks(TrackId(chosen.ref))
+        items = [_item(t, MatchQuality.STRONG) for t in tracks]
+        return items, compromise
 
     def emit(self, name: str, items: list[PlatformItem]) -> str:
         playlist = self._catalog.create_playlist(name)
@@ -65,6 +89,17 @@ def _artist_match(recording: Recording, track: Track) -> bool:
 def _album_match(recording: Recording, track: Track) -> bool:
     return bool(recording.album and track.album
                 and _norm(recording.album) in _norm(track.album))
+
+
+def _artist_match_album(artist: str, catalog_artists: tuple[str, ...]) -> bool:
+    a = artist.casefold()
+    return any(a in ca.casefold() or ca.casefold() in a for ca in catalog_artists)
+
+
+def _title_match_album(title: str, catalog_title: str) -> bool:
+    t = title.casefold()
+    ct = catalog_title.casefold()
+    return t in ct or ct in t
 
 
 def _quality(recording: Recording, track: Track) -> MatchQuality:

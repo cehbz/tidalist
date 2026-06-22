@@ -5,7 +5,7 @@ from datetime import datetime
 import tidalapi
 
 from ..core.identifiers import ISRC, TrackId, PlaylistId
-from ..core.catalog import Track, Edition
+from ..core.catalog import Track, Edition, CatalogAlbum
 
 
 class TidalCatalog:
@@ -29,6 +29,13 @@ class TidalCatalog:
     def add_tracks(self, playlist: PlaylistId, tracks: list[TrackId]) -> None:
         self._session.playlist(playlist).add([str(t) for t in tracks])
 
+    def search_albums(self, query: str, limit: int = 25) -> list[CatalogAlbum]:
+        results = self._session.search(query, models=[tidalapi.album.Album], limit=limit)
+        return [_album_from_tidal(a) for a in results["albums"][:limit]]
+
+    def album_tracks(self, album_id: TrackId) -> list[Track]:
+        return [track_from_tidal(t) for t in self._session.album(album_id).tracks()]
+
 
 def track_from_tidal(t) -> Track:
     return Track(
@@ -49,6 +56,17 @@ def _artist_names(t) -> list[str]:
         return [a.name for a in artists]
     artist = getattr(t, "artist", None)
     return [artist.name] if artist else ["Unknown"]
+
+
+def _album_from_tidal(a) -> CatalogAlbum:
+    artists = tuple(ar.name for ar in getattr(a, "artists", []))
+    return CatalogAlbum(
+        id=TrackId(str(a.id)),
+        title=a.name,
+        artists=artists,
+        year=getattr(a, "year", None),
+        num_tracks=getattr(a, "num_tracks", None),
+    )
 
 
 def _year(t) -> int | None:
