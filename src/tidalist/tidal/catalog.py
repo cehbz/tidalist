@@ -36,6 +36,14 @@ class TidalCatalog:
     def album_tracks(self, album_id: TrackId) -> list[Track]:
         return [track_from_tidal(t) for t in self._session.album(album_id).tracks()]
 
+    def album_editions(self, album_id: TrackId) -> list[CatalogAlbum]:
+        try:
+            anchor = self._session.album(album_id)
+            discography = anchor.artist.get_albums()
+            return [_album_from_tidal(x) for x in discography if _same_album_title(anchor.name, x.name)]
+        except Exception:
+            return []
+
 
 def track_from_tidal(t) -> Track:
     return Track(
@@ -67,6 +75,10 @@ def _album_from_tidal(a) -> CatalogAlbum:
         year=getattr(a, "year", None),
         num_tracks=getattr(a, "num_tracks", None),
     )
+
+
+def _same_album_title(a: str, b: str) -> bool:
+    return a.casefold() in b.casefold() or b.casefold() in a.casefold()
 
 
 def _year(t) -> int | None:

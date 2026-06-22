@@ -47,12 +47,37 @@ class _FakeAlbumObj:
         return self._tracks
 
 
+def _tidal_album_full(id, name, artist_name="Traffic", year=1970, num_tracks=6, discography=None):
+    """Fake tidalapi album with .artist that has .get_albums()."""
+    discography = discography or []
+
+    class _FakeArtist:
+        def __init__(self, name, albums):
+            self.name = name
+            self._albums = albums
+
+        def get_albums(self):
+            return self._albums
+
+    fake_artist = _FakeArtist(artist_name, discography)
+    return SimpleNamespace(
+        id=id,
+        name=name,
+        artists=[SimpleNamespace(name=artist_name)],
+        artist=fake_artist,
+        year=year,
+        num_tracks=num_tracks,
+    )
+
+
 class _FakeSession:
-    def __init__(self, tracks=(), isrc_hits=(), albums=(), album_tracks_map=None):
+    def __init__(self, tracks=(), isrc_hits=(), albums=(), album_tracks_map=None,
+                 album_obj_map=None):
         self._tracks = list(tracks)
         self._isrc_hits = list(isrc_hits)
         self._albums = list(albums)
         self._album_tracks_map = album_tracks_map or {}
+        self._album_obj_map = album_obj_map or {}
         self.user = _FakeUser()
         self.pl = _FakePlaylist()
         self.searched = []
@@ -70,7 +95,10 @@ class _FakeSession:
         return self.pl
 
     def album(self, album_id):
-        return _FakeAlbumObj(self._album_tracks_map.get(str(album_id), []))
+        sid = str(album_id)
+        if sid in self._album_obj_map:
+            return self._album_obj_map[sid]
+        return _FakeAlbumObj(self._album_tracks_map.get(sid, []))
 
 
 def test_search_tracks_maps_and_limits():
@@ -137,3 +165,51 @@ def test_album_tracks_returns_mapped_tracks():
 def test_album_tracks_returns_empty_for_unknown_id():
     session = _FakeSession()
     assert TidalCatalog(session).album_tracks("nonexistent") == []
+
+
+# --- album_editions ---
+
+def _make_discography():
+    """Return a discography with two editions of Mr. Fantasy and one unrelated album."""
+    mr_fantasy_10 = SimpleNamespace(
+        id=101, name="Mr. Fantasy", artists=[SimpleNamespace(name="Traffic")],
+        artist=None, year=1967, num_tracks=10,
+    )
+    mr_fantasy_22 = SimpleNamespace(
+        id=102, name="Mr. Fantasy (Deluxe Edition)", artists=[SimpleNamespace(name="Traffic")],
+        artist=None, year=1967, num_tracks=22,
+    )
+    shoot_out = SimpleNamespace(
+        id=103, name="Shoot Out At The Fantasy Factory", artists=[SimpleNamespace(name="Traffic")],
+        artist=None, year=1973, num_tracks=5,
+    )
+    return [mr_fantasy_10, mr_fantasy_22, shoot_out]
+
+
+def test_album_editions_returns_sibling_editions_by_title():
+    discography = _make_discography()
+    anchor = _tidal_album_full(101, "Mr. Fantasy", discography=discography)
+    session = _FakeSession(album_obj_map={"101": anchor})
+    editions = TidalCatalog(session).album_editions("101")
+    titles = [e.title for e in editions]
+    assert "Mr. Fantasy" in titles
+    assert "Mr. Fantasy (Deluxe Edition)" in titles
+    assert "Shoot Out At The Fantasy Factory" not in titles
+
+
+def test_album_editions_maps_num_tracks_correctly():
+    discography = _make_discography()
+    anchor = _tidal_album_full(101, "Mr. Fantasy", discography=discography)
+    session = _FakeSession(album_obj_map={"101": anchor})
+    editions = TidalCatalog(session).album_editions("101")
+    by_id = {e.id: e for e in editions}
+    assert by_id["101"].num_tracks == 10
+    assert by_id["102"].num_tracks == 22
+
+
+def test_album_editions_returns_empty_list_on_api_error():
+    class _BrokenSession:
+        def album(self, album_id):
+            raise RuntimeError("API error")
+
+    assert TidalCatalog(_BrokenSession()).album_editions("999") == []
