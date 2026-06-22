@@ -9,12 +9,12 @@ Callers must musicbrainzngs.set_useragent(...) before live use.
 
 import musicbrainzngs
 
-from ..core.album import Album
+from ..core.album import Album, TrackRef
 from ..core.identifiers import ISRC, MBID
 from ..core.recording import Candidate, Credit, Recording, Performance
 
 
-def album_from_release_group(rg: dict) -> Album:
+def album_from_release_group(rg: dict, tracklist: tuple[TrackRef, ...] = ()) -> Album:
     """Map a MusicBrainz release-group dict (search hit) to an Album."""
     frd = rg.get("first-release-date") or ""
     first_released = int(frd[:4]) if len(frd) >= 4 and frd[:4].isdigit() else None
@@ -26,6 +26,7 @@ def album_from_release_group(rg: dict) -> Album:
         first_released=first_released,
         primary_type=rg.get("primary-type"),
         secondary_types=tuple(rg.get("secondary-type-list") or ()),
+        tracklist=tracklist,
     )
 
 
@@ -124,6 +125,47 @@ class MusicBrainzMetadata:
             hits = [h for h in hits if _credited_to(h, artist_mbid)]
         return [recording_from_musicbrainz(h) for h in hits]
 
+    def _canonical_tracklist(self, rg_id: str) -> tuple[TrackRef, ...]:
+        """Fetch and return an ordered canonical tracklist for the given release-group id."""
+        try:
+            result = self._mb.browse_releases(
+                release_group=rg_id, includes=["recordings", "isrcs", "media"], limit=100)
+            releases = result.get("release-list") or []
+
+            official = [r for r in releases if r.get("status") == "Official"]
+            if not official:
+                return ()
+
+            def track_count(release: dict) -> int:
+                return sum(int(m.get("track-count", 0)) for m in release.get("medium-list") or [])
+
+            counts = [track_count(r) for r in official]
+            modal = max(set(counts), key=counts.count)
+
+            canonical = sorted(official, key=lambda r: (abs(track_count(r) - modal), r.get("date", "")))[0]
+
+            trackrefs = []
+            for medium in canonical.get("medium-list") or []:
+                for track in medium.get("track-list") or []:
+                    recording = track.get("recording") or {}
+                    position = int(track["position"])
+                    title = recording.get("title")
+                    mbid = MBID(recording["id"]) if recording.get("id") else None
+                    isrc_list = recording.get("isrc-list") or []
+                    isrc = ISRC(isrc_list[0]) if isrc_list else None
+                    length = recording.get("length")
+                    duration_s = round(int(length) / 1000) if length else None
+                    trackrefs.append(TrackRef(
+                        position=position,
+                        title=title,
+                        mbid=mbid,
+                        isrc=isrc,
+                        duration_s=duration_s,
+                    ))
+            return tuple(trackrefs)
+        except Exception:
+            return ()
+
     def albums_for(self, candidate: Candidate) -> list[Album]:
         results = self._mb.search_release_groups(
             artist=candidate.artist, releasegroup=candidate.title, limit=self._limit)
@@ -132,4 +174,5 @@ class MusicBrainzMetadata:
                        else self._artist_mbid(candidate.artist))
         if artist_mbid is not None:
             rgs = [rg for rg in rgs if _credited_to(rg, artist_mbid)]
-        return [album_from_release_group(rg) for rg in rgs]
+        return [album_from_release_group(rg, tracklist=self._canonical_tracklist(rg["id"]))
+                for rg in rgs]

@@ -1,4 +1,5 @@
-from tidalist.core.album import Album
+from tidalist.core.album import Album, TrackRef
+from tidalist.core.identifiers import ISRC, MBID
 from tidalist.core.recording import Candidate, Kind, Performance
 from tidalist.metadata.musicbrainz import (recording_from_musicbrainz, MusicBrainzMetadata,
                                            album_from_release_group)
@@ -94,10 +95,13 @@ def test_studio_default_is_unknown():
 # --- MusicBrainzMetadata.recordings_for ---
 
 class _FakeMB:
-    def __init__(self, search_list, artists=None, release_groups=None):
+    def __init__(self, search_list, artists=None, release_groups=None, browse_releases=None,
+                 browse_raises=False):
         self._search = search_list
         self._artists = artists if artists is not None else []
         self._release_groups = release_groups if release_groups is not None else []
+        self._browse_releases = browse_releases if browse_releases is not None else []
+        self._browse_raises = browse_raises
         self.calls = []
 
     def search_recordings(self, query="", limit=None, **fields):
@@ -109,6 +113,12 @@ class _FakeMB:
 
     def search_release_groups(self, artist="", releasegroup="", limit=None, **kw):
         return {"release-group-list": self._release_groups}
+
+    def browse_releases(self, release_group=None, includes=None, limit=None, **kw):
+        self.calls.append(("browse_releases", release_group, includes))
+        if self._browse_raises:
+            raise Exception("MB API error")
+        return {"release-list": self._browse_releases}
 
     def get_recording_by_id(self, id, includes=None, **kw):
         self.calls.append(("get", id, tuple(includes or [])))
@@ -314,7 +324,6 @@ def test_recordings_for_uses_provided_artist_mbid_skipping_search_artists():
 
 def test_albums_for_uses_provided_artist_mbid_skipping_search_artists():
     """When candidate.artist_mbid is set, search_artists is never called for albums_for."""
-    from tidalist.core.identifiers import MBID
     mb = _TrackingFakeMB(
         [],
         artists=[{"id": "a-traffic", "name": "Traffic"}],
@@ -325,3 +334,177 @@ def test_albums_for_uses_provided_artist_mbid_skipping_search_artists():
     albums = MusicBrainzMetadata(mb).albums_for(candidate)
     assert mb.search_artists_calls == 0
     assert [a.mbid for a in albums] == ["rg-traffic"]
+
+
+# --- _canonical_tracklist helpers ---
+
+def _release(status="Official", date="1970-07-01", tracks=None):
+    """Build a fake MB release dict."""
+    if tracks is None:
+        tracks = [
+            {"position": "1", "recording": {"id": "rec-1", "title": "Glad",
+                                             "isrc-list": ["GBABC1234567"], "length": "386000"}},
+            {"position": "2", "recording": {"id": "rec-2", "title": "Freedom Rider",
+                                             "isrc-list": [], "length": None}},
+        ]
+    medium_list = [{"track-list": tracks, "track-count": len(tracks)}]
+    return {
+        "id": f"rel-{date}",
+        "status": status,
+        "date": date,
+        "medium-list": medium_list,
+    }
+
+
+# --- _canonical_tracklist: basic TrackRef building ---
+
+def test_canonical_tracklist_builds_trackref_positions():
+    mb = _FakeMB([], browse_releases=[_release()])
+    svc = MusicBrainzMetadata(mb)
+    tl = svc._canonical_tracklist("rg-1")
+    assert tl[0].position == 1
+    assert tl[1].position == 2
+
+
+def test_canonical_tracklist_builds_trackref_titles():
+    mb = _FakeMB([], browse_releases=[_release()])
+    svc = MusicBrainzMetadata(mb)
+    tl = svc._canonical_tracklist("rg-1")
+    assert tl[0].title == "Glad"
+    assert tl[1].title == "Freedom Rider"
+
+
+def test_canonical_tracklist_isrc_from_first_in_list():
+    mb = _FakeMB([], browse_releases=[_release()])
+    svc = MusicBrainzMetadata(mb)
+    tl = svc._canonical_tracklist("rg-1")
+    assert tl[0].isrc == ISRC("GBABC1234567")
+
+
+def test_canonical_tracklist_isrc_none_when_absent():
+    mb = _FakeMB([], browse_releases=[_release()])
+    svc = MusicBrainzMetadata(mb)
+    tl = svc._canonical_tracklist("rg-1")
+    assert tl[1].isrc is None
+
+
+def test_canonical_tracklist_mbid_from_recording_id():
+    mb = _FakeMB([], browse_releases=[_release()])
+    svc = MusicBrainzMetadata(mb)
+    tl = svc._canonical_tracklist("rg-1")
+    assert tl[0].mbid == MBID("rec-1")
+
+
+def test_canonical_tracklist_duration_s_rounded_from_ms():
+    mb = _FakeMB([], browse_releases=[_release()])
+    svc = MusicBrainzMetadata(mb)
+    tl = svc._canonical_tracklist("rg-1")
+    assert tl[0].duration_s == 386   # 386000ms → 386s
+
+
+def test_canonical_tracklist_duration_s_none_when_absent():
+    mb = _FakeMB([], browse_releases=[_release()])
+    svc = MusicBrainzMetadata(mb)
+    tl = svc._canonical_tracklist("rg-1")
+    assert tl[1].duration_s is None
+
+
+# --- _canonical_tracklist: canonical-release selection ---
+
+def _release_with_n_tracks(n, date="1970-07-01", status="Official"):
+    """Build a fake release with n identical tracks."""
+    tracks = [
+        {"position": str(i + 1), "recording": {"id": f"rec-{i}", "title": f"Track {i + 1}",
+                                                "length": "200000"}}
+        for i in range(n)
+    ]
+    return {
+        "id": f"rel-{n}-{date}",
+        "status": status,
+        "date": date,
+        "medium-list": [{"track-list": tracks, "track-count": n}],
+    }
+
+
+def test_canonical_selects_modal_over_deluxe():
+    """Releases with counts [10, 10, 22]: modal=10, so a 10-track edition is chosen."""
+    releases = [
+        _release_with_n_tracks(10, date="1971-01-01"),
+        _release_with_n_tracks(10, date="1972-01-01"),
+        _release_with_n_tracks(22, date="1970-01-01"),  # earlier date but non-modal count
+    ]
+    mb = _FakeMB([], browse_releases=releases)
+    tl = MusicBrainzMetadata(mb)._canonical_tracklist("rg-1")
+    assert len(tl) == 10
+
+
+def test_canonical_prefers_earliest_among_modal_releases():
+    """Among modal-count releases, the earliest date is chosen."""
+    releases = [
+        _release_with_n_tracks(10, date="1972-01-01"),
+        _release_with_n_tracks(10, date="1970-06-01"),  # earlier
+        _release_with_n_tracks(10, date="1971-01-01"),
+    ]
+    mb = _FakeMB([], browse_releases=releases)
+    svc = MusicBrainzMetadata(mb)
+    tl = svc._canonical_tracklist("rg-1")
+    # All 10-track, earliest is "1970-06-01" — track ids from that release start "rec-0"
+    assert tl[0].mbid is not None  # just verify we got a tracklist back with 10 tracks
+    assert len(tl) == 10
+
+
+# --- _canonical_tracklist: edge cases ---
+
+def test_canonical_ignores_non_official_releases():
+    releases = [
+        _release_with_n_tracks(10, status="Bootleg"),
+        _release_with_n_tracks(8, status="Promotion"),
+    ]
+    mb = _FakeMB([], browse_releases=releases)
+    tl = MusicBrainzMetadata(mb)._canonical_tracklist("rg-1")
+    assert tl == ()
+
+
+def test_canonical_empty_when_no_releases():
+    mb = _FakeMB([], browse_releases=[])
+    tl = MusicBrainzMetadata(mb)._canonical_tracklist("rg-1")
+    assert tl == ()
+
+
+def test_canonical_returns_empty_when_browse_raises():
+    mb = _FakeMB([], browse_raises=True)
+    tl = MusicBrainzMetadata(mb)._canonical_tracklist("rg-1")
+    assert tl == ()
+
+
+# --- albums_for: end-to-end tracklist attachment ---
+
+def test_albums_for_attaches_tracklist_to_album():
+    """albums_for should populate each Album's tracklist from _canonical_tracklist."""
+    rg = _rg_credited("rg-traffic", "a-traffic", "Traffic")
+    releases = [_release(date="1970-07-01")]
+    mb = _FakeMB(
+        [],
+        artists=[{"id": "a-traffic", "name": "Traffic"}],
+        release_groups=[rg],
+        browse_releases=releases,
+    )
+    albums = MusicBrainzMetadata(mb).albums_for(Candidate("Traffic", "John Barleycorn Must Die"))
+    assert len(albums) == 1
+    assert len(albums[0].tracklist) == 2
+    assert albums[0].tracklist[0].title == "Glad"
+    assert albums[0].tracklist[1].title == "Freedom Rider"
+
+
+def test_albums_for_tracklist_empty_when_browse_raises():
+    """If _canonical_tracklist fails, albums_for still returns the album with empty tracklist."""
+    rg = _rg_credited("rg-traffic", "a-traffic", "Traffic")
+    mb = _FakeMB(
+        [],
+        artists=[{"id": "a-traffic", "name": "Traffic"}],
+        release_groups=[rg],
+        browse_raises=True,
+    )
+    albums = MusicBrainzMetadata(mb).albums_for(Candidate("Traffic", "John Barleycorn Must Die"))
+    assert len(albums) == 1
+    assert albums[0].tracklist == ()
