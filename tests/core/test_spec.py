@@ -244,3 +244,56 @@ def test_golden_entry_edition_none_round_trips():
     g = GoldenPlaylist("x", brief, (entry,))
     result = from_golden(to_golden(g))
     assert result.entries[0].edition is None
+
+
+# --- Phase 2 (edition-distance): Album.tracklist round-trips ---
+
+def test_golden_album_entry_with_tracklist_round_trips():
+    """Album golden entry carrying a 2-track tracklist round-trips exactly."""
+    from tidalist.core.album import TrackRef
+    tracks = (
+        TrackRef(position=1, title="Glad", isrc=ISRC("GBABC1234567"),
+                 mbid=MBID("rec-1"), duration_s=386),
+        TrackRef(position=2, title="Freedom Rider"),  # None fields
+    )
+    brief = Brief("x", ())
+    album = Album(artist="Traffic", title="John Barleycorn Must Die",
+                  mbid=MBID("rg1"), first_released=1970, tracklist=tracks)
+    entry = GoldenEntry(album, Provenance("nl"), Verdict.ok())
+    g = GoldenPlaylist("x", brief, (entry,))
+    result = from_golden(to_golden(g))
+    assert result.entries[0].item.tracklist == tracks  # type: ignore[union-attr]
+
+
+def test_golden_album_entry_tracklist_is_pure_json():
+    """Tracklist serializes to JSON-safe types."""
+    from tidalist.core.album import TrackRef
+    from tidalist.core.spec import _golden_entry_to_dict
+    tracks = (
+        TrackRef(position=1, title="Glad", isrc=ISRC("GBABC1234567"),
+                 mbid=MBID("rec-1"), duration_s=386),
+    )
+    album = Album(artist="Traffic", title="John Barleycorn Must Die", tracklist=tracks)
+    entry = GoldenEntry(album, Provenance("nl"), Verdict.ok())
+    d = _golden_entry_to_dict(entry)
+    assert json.loads(json.dumps(d)) == d
+    assert d["tracklist"][0] == {
+        "position": 1, "title": "Glad", "isrc": "GBABC1234567",
+        "mbid": "rec-1", "duration_s": 386,
+    }
+
+
+def test_golden_album_entry_missing_tracklist_key_loads_as_empty():
+    """Back-compat: a golden dict with no 'tracklist' key yields tracklist=()."""
+    d = {
+        "name": "x",
+        "brief": {"criteria": []},
+        "entries": [{
+            "kind": "album", "artist": "Traffic",
+            "title": "John Barleycorn Must Die",
+            "provenance": {"source": "nl", "note": ""},
+            "verdict": {"admitted": True, "violations": []},
+        }],
+    }
+    result = from_golden(d)
+    assert result.entries[0].item.tracklist == ()  # type: ignore[union-attr]

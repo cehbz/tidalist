@@ -6,7 +6,7 @@ known rule types, we validate by tag, and we never eval model output.
 
 from .identifiers import ISRC, MBID
 from .recording import Candidate, Credit, Recording, Performance, Kind
-from .album import Album
+from .album import Album, TrackRef
 from .criteria import PerformedBy, Studio, NotCompilation, NotLive, Criterion, Verdict
 from .brief import Brief
 from .edition import EditionPreference
@@ -103,6 +103,21 @@ def _mbid(value):
     return MBID(value) if value is not None else None
 
 
+def _trackref_to_dict(t: TrackRef) -> dict:
+    return {"position": t.position, "title": t.title, "isrc": t.isrc,
+            "mbid": t.mbid, "duration_s": t.duration_s}
+
+
+def _trackref_from_dict(d: dict) -> TrackRef:
+    return TrackRef(
+        position=d["position"],
+        title=d["title"],
+        isrc=ISRC(d["isrc"]) if d.get("isrc") else None,
+        mbid=MBID(d["mbid"]) if d.get("mbid") else None,
+        duration_s=d.get("duration_s"),
+    )
+
+
 # --- golden artifact (the durable, portable product) -------------------------
 
 def _golden_entry_to_dict(e: GoldenEntry) -> dict:
@@ -118,6 +133,7 @@ def _golden_entry_to_dict(e: GoldenEntry) -> dict:
                 "title": a.title, "year": a.first_released,
                 "primary_type": a.primary_type,
                 "secondary_types": list(a.secondary_types),
+                "tracklist": [_trackref_to_dict(t) for t in a.tracklist],
                 **prov_verdict}
     r = e.item
     return {
@@ -140,7 +156,8 @@ def _golden_entry_from_dict(d: dict) -> GoldenEntry:
         item = Album(artist=d["artist"], title=d["title"],
                      mbid=_mbid(d.get("mbid")), first_released=d.get("year"),
                      primary_type=d.get("primary_type"),
-                     secondary_types=tuple(d.get("secondary_types") or ()))
+                     secondary_types=tuple(d.get("secondary_types") or ()),
+                     tracklist=tuple(_trackref_from_dict(t) for t in d.get("tracklist", [])))
     else:
         item = Recording(
             artist=d["artist"], title=d["title"], mbid=_mbid(d.get("mbid")),
