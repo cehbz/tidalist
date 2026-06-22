@@ -75,12 +75,45 @@ def test_format_golden_header_counts_admitted():
 def test_format_realization_shows_resolved_and_gaps():
     item = PlatformItem(ref="T-glad", title="Glad", artists=("Traffic",),
                         quality=MatchQuality.ISRC)
-    r = Realization("Winwood", (RealizedEntry(_entry("Glad"), item),
-                                RealizedEntry(_entry("Obscure"), None)))
+    r = Realization("Winwood", (RealizedEntry(_entry("Glad"), items=(item,)),
+                                RealizedEntry(_entry("Obscure"))))
     text = cli.format_realization(r)
     assert "Glad" in text and "T-glad" in text and "isrc" in text
     assert "Obscure" in text and "gap" in text.lower()
     assert "1 gap" in text
+
+
+def test_format_realization_shows_album_track_count():
+    from tidalist.core.album import Album
+    from tidalist.core.golden import GoldenEntry
+    from tidalist.core.provenance import Provenance
+    from tidalist.core.criteria import Verdict
+
+    t1 = PlatformItem(ref="t1", title="Glad", artists=("Traffic",))
+    t2 = PlatformItem(ref="t2", title="Freedom Rider", artists=("Traffic",))
+    album = Album(artist="Traffic", title="John Barleycorn Must Die")
+    golden_entry = GoldenEntry(album, Provenance("nl"), Verdict.ok())
+    r = Realization("Traffic Albums", (RealizedEntry(golden_entry, items=(t1, t2)),))
+    text = cli.format_realization(r)
+    assert "2 tracks" in text
+    assert "John Barleycorn Must Die" in text
+
+
+def test_format_realization_shows_compromise_note():
+    from tidalist.core.album import Album
+    from tidalist.core.golden import GoldenEntry
+    from tidalist.core.provenance import Provenance
+    from tidalist.core.criteria import Verdict
+
+    t1 = PlatformItem(ref="t1", title="Glad", artists=("Traffic",))
+    album = Album(artist="Traffic", title="John Barleycorn Must Die")
+    golden_entry = GoldenEntry(album, Provenance("nl"), Verdict.ok())
+    r = Realization("Traffic Albums", (
+        RealizedEntry(golden_entry, items=(t1,), compromise="preferred edition unavailable"),
+    ))
+    text = cli.format_realization(r)
+    assert "edition compromise" in text
+    assert "preferred edition unavailable" in text
 
 
 # --- verb use cases ----------------------------------------------------------

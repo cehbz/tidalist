@@ -7,19 +7,30 @@ from tidalist.core.provenance import Provenance
 from tidalist.core.brief import Brief
 from tidalist.core.golden import GoldenEntry, GoldenPlaylist
 from tidalist.core.realize import realize, publish, Realization, PlatformItem, MatchQuality, EditionOption, choose_edition
-from tidalist.core.edition import EditionPreference
+from tidalist.core.edition import EditionPreference, EditionPolicy
 from tidalist.core.errors import CatalogError
 
 
 class _FakeRealizer:
-    """Resolves by recording title; a missing title is a gap. Records emit calls."""
+    """Resolves by recording title; a missing title is a gap. Records emit calls.
 
-    def __init__(self, items: dict):
+    Also supports resolve_album: keyed by album title, returns (items_list, compromise).
+    """
+
+    def __init__(self, items: dict, albums: dict | None = None):
         self._by_title = {k.casefold(): v for k, v in items.items()}
+        # albums: {title: ([PlatformItem, ...], compromise_str | None)}
+        self._albums = {k.casefold(): v for k, v in (albums or {}).items()}
         self.emitted = []
 
     def resolve(self, recording):
         return self._by_title.get(recording.title.casefold())
+
+    def resolve_album(self, album, preference):
+        key = album.title.casefold()
+        if key in self._albums:
+            return self._albums[key]
+        return [], None
 
     def emit(self, name, items):
         ref = f"playlist-{len(self.emitted) + 1}"
@@ -45,7 +56,7 @@ def test_realize_resolves_each_admitted_entry():
     r = realize(_golden(_entry("Glad")), _FakeRealizer({"Glad": _item("T-glad")}))
     assert isinstance(r, Realization)
     assert len(r.entries) == 1
-    assert r.entries[0].item.ref == "T-glad"
+    assert r.entries[0].items[0].ref == "T-glad"
 
 
 def test_realize_skips_rejected_golden_entries():
@@ -77,11 +88,81 @@ def test_publish_raises_when_nothing_resolved():
         publish(r, realizer)
 
 
-def test_album_entry_is_a_gap_until_phase_5():
+def test_album_entry_with_no_tracks_is_a_gap():
     g = _golden(GoldenEntry(Album(artist="Traffic", title="John Barleycorn Must Die"),
                             Provenance("nl"), Verdict.ok()))
     r = realize(g, _FakeRealizer({}))
-    assert [e.item.title for e in r.gaps()] == ["John Barleycorn Must Die"]
+    # resolve_album returns ([], None) → gap
+    assert [e.golden.item.title for e in r.entries if e.is_gap] == ["John Barleycorn Must Die"]
+
+
+def test_album_entry_with_tracks_is_resolved():
+    track1 = PlatformItem(ref="t1", title="Glad", artists=("Traffic",))
+    track2 = PlatformItem(ref="t2", title="Freedom Rider", artists=("Traffic",))
+    album = Album(artist="Traffic", title="John Barleycorn Must Die")
+    entry = GoldenEntry(album, Provenance("nl"), Verdict.ok())
+    g = _golden(entry)
+    realizer = _FakeRealizer({}, albums={"John Barleycorn Must Die": ([track1, track2], None)})
+    r = realize(g, realizer)
+    assert len(r.resolved()) == 1
+    assert r.resolved()[0].items == (track1, track2)
+    assert not r.resolved()[0].is_gap
+
+
+def test_album_entry_compromise_surfaces_in_compromises():
+    track1 = PlatformItem(ref="t1", title="Glad", artists=("Traffic",))
+    album = Album(artist="Traffic", title="John Barleycorn Must Die")
+    entry = GoldenEntry(album, Provenance("nl"), Verdict.ok())
+    g = _golden(entry)
+    realizer = _FakeRealizer(
+        {}, albums={"John Barleycorn Must Die": ([track1], "preferred edition (steven wilson) unavailable")}
+    )
+    r = realize(g, realizer)
+    comps = r.compromises()
+    assert len(comps) == 1
+    golden_e, note = comps[0]
+    assert golden_e.item.title == "John Barleycorn Must Die"
+    assert "steven wilson" in note
+
+
+def test_compromises_empty_when_no_compromise():
+    track1 = PlatformItem(ref="t1", title="Glad", artists=("Traffic",))
+    album = Album(artist="Traffic", title="John Barleycorn Must Die")
+    entry = GoldenEntry(album, Provenance("nl"), Verdict.ok())
+    g = _golden(entry)
+    realizer = _FakeRealizer({}, albums={"John Barleycorn Must Die": ([track1], None)})
+    r = realize(g, realizer)
+    assert r.compromises() == ()
+
+
+def test_publish_flattens_album_tracks():
+    track1 = PlatformItem(ref="t1", title="Glad", artists=("Traffic",))
+    track2 = PlatformItem(ref="t2", title="Freedom Rider", artists=("Traffic",))
+    album = Album(artist="Traffic", title="John Barleycorn Must Die")
+    entry = GoldenEntry(album, Provenance("nl"), Verdict.ok())
+    g = _golden(entry)
+    realizer = _FakeRealizer({}, albums={"John Barleycorn Must Die": ([track1, track2], None)})
+    r = realize(g, realizer)
+    publish(r, realizer)
+    name, refs, _ = realizer.emitted[-1]
+    assert refs == ["t1", "t2"]
+
+
+def test_publish_flattens_mixed_recording_and_album():
+    track1 = PlatformItem(ref="t1", title="Glad", artists=("Traffic",))
+    track2 = PlatformItem(ref="t2", title="Freedom Rider", artists=("Traffic",))
+    album = Album(artist="Traffic", title="John Barleycorn Must Die")
+    album_entry = GoldenEntry(album, Provenance("nl"), Verdict.ok())
+    rec_entry = _entry("Glad")
+    g = _golden(rec_entry, album_entry)
+    realizer = _FakeRealizer(
+        {"Glad": _item("T-glad")},
+        albums={"John Barleycorn Must Die": ([track1, track2], None)},
+    )
+    r = realize(g, realizer)
+    publish(r, realizer)
+    name, refs, _ = realizer.emitted[-1]
+    assert refs == ["T-glad", "t1", "t2"]
 
 
 # --- choose_edition tests ---

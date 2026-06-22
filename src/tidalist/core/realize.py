@@ -10,7 +10,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Protocol, runtime_checkable
 
-from .edition import EditionPreference
+from .album import Album
+from .edition import EditionPreference, EditionPolicy
 from .identifiers import ISRC
 from .recording import Recording
 from .golden import GoldenEntry, GoldenPlaylist
@@ -88,11 +89,12 @@ class PlatformItem:
 @dataclass(frozen=True, slots=True)
 class RealizedEntry:
     golden: GoldenEntry
-    item: PlatformItem | None    # None = gap (no platform match)
+    items: tuple[PlatformItem, ...] = ()
+    compromise: str | None = None
 
     @property
     def is_gap(self) -> bool:
-        return self.item is None
+        return not self.items
 
 
 @dataclass(frozen=True, slots=True)
@@ -106,25 +108,47 @@ class Realization:
     def gaps(self) -> tuple[GoldenEntry, ...]:
         return tuple(e.golden for e in self.entries if e.is_gap)
 
+    def compromises(self) -> tuple[tuple[GoldenEntry, str], ...]:
+        return tuple(
+            (e.golden, e.compromise)
+            for e in self.entries
+            if e.compromise is not None
+        )
+
 
 @runtime_checkable
 class Realizer(Protocol):
     def resolve(self, recording: Recording) -> PlatformItem | None: ...
+    def resolve_album(self, album: Album,
+                      preference: EditionPreference) -> tuple[list[PlatformItem], str | None]: ...
     def emit(self, name: str, items: list[PlatformItem]) -> str: ...
 
 
-def realize(golden: GoldenPlaylist, realizer: Realizer) -> Realization:
-    """Resolve every admitted golden entry to a platform item (or a gap). No writes."""
-    entries = tuple(
-        RealizedEntry(e, realizer.resolve(e.item) if isinstance(e.item, Recording) else None)
-        for e in golden.entries if e.verdict.admitted
-    )
-    return Realization(golden.name, entries)
+def realize(
+    golden: GoldenPlaylist,
+    realizer: Realizer,
+    preference: EditionPreference = EditionPolicy.default(),
+) -> Realization:
+    """Resolve every admitted golden entry to platform items (or a gap). No writes."""
+    realized = []
+    for e in golden.entries:
+        if not e.verdict.admitted:
+            continue
+        if isinstance(e.item, Recording):
+            pi = realizer.resolve(e.item)
+            items = (pi,) if pi is not None else ()
+            realized.append(RealizedEntry(e, items=items, compromise=None))
+        elif isinstance(e.item, Album):
+            items_list, compromise = realizer.resolve_album(e.item, preference)
+            realized.append(RealizedEntry(e, items=tuple(items_list), compromise=compromise))
+        else:
+            realized.append(RealizedEntry(e, items=(), compromise=None))
+    return Realization(golden.name, tuple(realized))
 
 
 def publish(realization: Realization, realizer: Realizer) -> str:
     """Emit the resolved items to the platform; return the platform playlist reference."""
-    items = [e.item for e in realization.resolved()]
+    items = [item for e in realization.resolved() for item in e.items]
     if not items:
         raise CatalogError(f"nothing resolved to publish for '{realization.name}'")
     return realizer.emit(realization.name, items)

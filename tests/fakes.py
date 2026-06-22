@@ -71,14 +71,24 @@ class FakeMetadataProvider:
 
 
 class FakeRealizer:
-    """Realizer port fake: resolves by recording title (missing => gap); records emits."""
+    """Realizer port fake: resolves by recording title (missing => gap); records emits.
 
-    def __init__(self, items: dict):
+    `albums` maps album title → ([PlatformItem, ...], compromise | None).
+    """
+
+    def __init__(self, items: dict, albums: dict | None = None):
         self._by_title = {k.casefold(): v for k, v in items.items()}
+        self._albums = {k.casefold(): v for k, v in (albums or {}).items()}
         self.emitted: list = []
 
     def resolve(self, recording):
         return self._by_title.get(recording.title.casefold())
+
+    def resolve_album(self, album, preference):
+        key = album.title.casefold()
+        if key in self._albums:
+            return self._albums[key]
+        return [], None
 
     def emit(self, name: str, items: list) -> str:
         ref = f"playlist-{len(self.emitted) + 1}"

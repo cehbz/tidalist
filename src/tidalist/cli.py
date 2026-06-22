@@ -43,8 +43,17 @@ def format_realization(realization: Realization) -> str:
         r = e.golden.item
         if e.is_gap:
             lines.append(f"  ✗ {r.artist} — {r.title}  — gap (no platform match)")
+        elif len(e.items) == 1:
+            item = e.items[0]
+            line = f"  ✓ {r.artist} — {r.title} → {item.ref}  [{item.quality.value}]"
+            if e.compromise:
+                line += f"  [edition compromise: {e.compromise}]"
+            lines.append(line)
         else:
-            lines.append(f"  ✓ {r.artist} — {r.title} → {e.item.ref}  [{e.item.quality.value}]")
+            line = f"  ✓ {r.artist} — {r.title} → {len(e.items)} tracks"
+            if e.compromise:
+                line += f"  [edition compromise: {e.compromise}]"
+            lines.append(line)
     return "\n".join(lines)
 
 
