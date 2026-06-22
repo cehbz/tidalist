@@ -5,7 +5,7 @@ import pytest
 from tidalist.core.identifiers import ISRC, MBID
 from tidalist.core.recording import Candidate, Credit, Recording, Performance, Kind
 from tidalist.core.album import Album
-from tidalist.core.criteria import PerformedBy, Studio, Verdict
+from tidalist.core.criteria import PerformedBy, Studio, NotCompilation, NotLive, Verdict
 from tidalist.core.brief import Brief
 from tidalist.core.provenance import Provenance
 from tidalist.core.golden import GoldenPlaylist, GoldenEntry
@@ -111,3 +111,57 @@ def test_intent_round_trips_candidate_kind():
     provenances = [Provenance("nl", "album"), Provenance("nl", "track")]
     c2, _, _ = from_intent(to_intent(brief, candidates, provenances))
     assert [c.kind for c in c2] == [Kind.ALBUM, Kind.TRACK]
+
+
+# --- Phase 4 Task 1: new criteria serialization ---
+
+def test_not_compilation_round_trips():
+    brief = Brief("x", (NotCompilation(),))
+    d = {"name": "x", "brief": {"criteria": [{"type": "not_compilation"}]}, "entries": []}
+    g = from_golden(d)
+    assert g.brief.criteria[0] == NotCompilation()
+
+
+def test_not_live_round_trips():
+    brief = Brief("x", (NotLive(),))
+    d = {"name": "x", "brief": {"criteria": [{"type": "not_live"}]}, "entries": []}
+    g = from_golden(d)
+    assert g.brief.criteria[0] == NotLive()
+
+
+def test_not_compilation_serializes_to_expected_dict():
+    from tidalist.core.spec import _criterion_to_dict
+    assert _criterion_to_dict(NotCompilation()) == {"type": "not_compilation"}
+
+
+def test_not_live_serializes_to_expected_dict():
+    from tidalist.core.spec import _criterion_to_dict
+    assert _criterion_to_dict(NotLive()) == {"type": "not_live"}
+
+
+# --- Phase 4 Task 1: album golden entry carries type fields ---
+
+def test_golden_album_entry_round_trips_with_type_fields():
+    brief = Brief("Winwood", ())
+    album = Album(artist="Traffic", title="John Barleycorn Must Die",
+                  mbid=MBID("rg1"), first_released=1970,
+                  primary_type="Album", secondary_types=("Live",))
+    entry = GoldenEntry(album, Provenance("nl"), Verdict.ok())
+    g = GoldenPlaylist("Winwood", brief, (entry,))
+    result = from_golden(to_golden(g))
+    a = result.entries[0].item
+    assert isinstance(a, Album)
+    assert a.primary_type == "Album"
+    assert a.secondary_types == ("Live",)
+
+
+def test_golden_album_entry_serializes_type_fields():
+    from tidalist.core.spec import _golden_entry_to_dict
+    from tidalist.core.provenance import Provenance
+    from tidalist.core.golden import GoldenEntry
+    album = Album(artist="Traffic", title="John Barleycorn Must Die",
+                  primary_type="Album", secondary_types=("Compilation",))
+    entry = GoldenEntry(album, Provenance("nl"), Verdict.ok())
+    d = _golden_entry_to_dict(entry)
+    assert d["primary_type"] == "Album"
+    assert d["secondary_types"] == ["Compilation"]

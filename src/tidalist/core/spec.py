@@ -7,7 +7,7 @@ known rule types, we validate by tag, and we never eval model output.
 from .identifiers import ISRC, MBID
 from .recording import Candidate, Credit, Recording, Performance, Kind
 from .album import Album
-from .criteria import PerformedBy, Studio, Criterion, Verdict
+from .criteria import PerformedBy, Studio, NotCompilation, NotLive, Criterion, Verdict
 from .brief import Brief
 from .provenance import Provenance
 from .golden import GoldenPlaylist, GoldenEntry
@@ -20,6 +20,10 @@ def _criterion_to_dict(c: Criterion) -> dict:
         return {"type": "performed_by", "artist": c.artist}
     if isinstance(c, Studio):
         return {"type": "studio"}
+    if isinstance(c, NotCompilation):
+        return {"type": "not_compilation"}
+    if isinstance(c, NotLive):
+        return {"type": "not_live"}
     raise ValueError(f"unserializable criterion: {type(c).__name__}")
 
 
@@ -29,6 +33,10 @@ def _criterion_from_dict(d: dict) -> Criterion:
         return PerformedBy(d["artist"])
     if kind == "studio":
         return Studio()
+    if kind == "not_compilation":
+        return NotCompilation()
+    if kind == "not_live":
+        return NotLive()
     raise ValueError(f"unknown criterion type: {kind!r}")
 
 
@@ -78,7 +86,10 @@ def _golden_entry_to_dict(e: GoldenEntry) -> dict:
     if isinstance(e.item, Album):
         a = e.item
         return {"kind": "album", "mbid": a.mbid, "artist": a.artist,
-                "title": a.title, "year": a.first_released, **prov_verdict}
+                "title": a.title, "year": a.first_released,
+                "primary_type": a.primary_type,
+                "secondary_types": list(a.secondary_types),
+                **prov_verdict}
     r = e.item
     return {
         "kind": "track",
@@ -96,7 +107,9 @@ def _golden_entry_from_dict(d: dict) -> GoldenEntry:
     verdict = Verdict(v["admitted"], tuple(v.get("violations", [])))
     if d.get("kind", "track") == "album":
         item = Album(artist=d["artist"], title=d["title"],
-                     mbid=_mbid(d.get("mbid")), first_released=d.get("year"))
+                     mbid=_mbid(d.get("mbid")), first_released=d.get("year"),
+                     primary_type=d.get("primary_type"),
+                     secondary_types=tuple(d.get("secondary_types") or ()))
     else:
         item = Recording(
             artist=d["artist"], title=d["title"], mbid=_mbid(d.get("mbid")),

@@ -7,8 +7,10 @@ from .identifiers import MBID
 
 @dataclass(frozen=True, slots=True)
 class Album:
-    """Release-group identity. Edition fields arrive in Phase 4 — do not add them here."""
+    """Release-group identity with edition type fields."""
     artist: str
     title: str
     mbid: MBID | None = None
     first_released: int | None = None
+    primary_type: str | None = None
+    secondary_types: tuple[str, ...] = ()

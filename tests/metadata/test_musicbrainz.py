@@ -256,3 +256,30 @@ def test_albums_for_unfiltered_when_artist_unresolved():
                  release_groups=[_rg_credited("rg-x", "a-x", "X")])
     albums = MusicBrainzMetadata(mb).albums_for(Candidate("X", "Something"))
     assert len(albums) == 1
+
+
+# --- Phase 4 Task 1: album_from_release_group maps type fields ---
+
+def test_album_from_rg_maps_primary_type():
+    assert album_from_release_group(_rg()).primary_type == "Album"
+
+
+def test_album_from_rg_primary_type_none_when_absent():
+    rg = _rg()
+    del rg["primary-type"]
+    assert album_from_release_group(rg).primary_type is None
+
+
+def test_album_from_rg_maps_secondary_types_from_list():
+    rg = {**_rg(), "secondary-type-list": ["Compilation"]}
+    assert album_from_release_group(rg).secondary_types == ("Compilation",)
+
+
+def test_album_from_rg_secondary_types_empty_when_absent():
+    rg = _rg()
+    assert album_from_release_group(rg).secondary_types == ()
+
+
+def test_album_from_rg_secondary_types_empty_when_list_is_none():
+    rg = {**_rg(), "secondary-type-list": None}
+    assert album_from_release_group(rg).secondary_types == ()

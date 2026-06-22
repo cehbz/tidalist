@@ -50,7 +50,7 @@ class Curator:
 
     def _entry(self, brief: Brief, candidate: Candidate, provenance: Provenance) -> GoldenEntry:
         if candidate.kind is Kind.ALBUM:
-            return self._album_entry(candidate, provenance)
+            return self._album_entry(candidate, provenance, brief)
         recordings = self._metadata.recordings_for(candidate)
         if not recordings:
             miss = Recording(artist=candidate.artist, title=candidate.title)
@@ -58,12 +58,13 @@ class Curator:
         chosen = self._choose(brief, recordings)
         return GoldenEntry(chosen, provenance, brief.judge(chosen))
 
-    def _album_entry(self, candidate: Candidate, provenance: Provenance) -> GoldenEntry:
+    def _album_entry(self, candidate: Candidate, provenance: Provenance,
+                    brief: Brief) -> GoldenEntry:
         albums = self._metadata.albums_for(candidate)
         if not albums:
             miss = Album(artist=candidate.artist, title=candidate.title)
             return GoldenEntry(miss, provenance, Verdict.rejected("no album found"))
-        return GoldenEntry(albums[0], provenance, Verdict.ok())
+        return GoldenEntry(albums[0], provenance, brief.judge(albums[0]))
 
     def _choose(self, brief: Brief, recordings: list[Recording]) -> Recording:
         admissible = [r for r in recordings if brief.judge(r).admitted]

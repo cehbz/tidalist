@@ -2,7 +2,7 @@ import pytest
 
 from tidalist.core.recording import Candidate, Credit, Recording, Performance, Kind
 from tidalist.core.album import Album
-from tidalist.core.criteria import PerformedBy, Studio
+from tidalist.core.criteria import PerformedBy, Studio, NotCompilation, NotLive
 from tidalist.core.brief import Brief
 from tidalist.core.provenance import Provenance
 from tidalist.core.golden import Curator, GoldenPlaylist, GoldenEntry
@@ -168,3 +168,49 @@ def test_track_candidate_still_uses_recordings_path():
     entry = golden.entries[0]
     assert isinstance(entry.item, Recording)
     assert entry.item.title == "Glad"
+
+
+# --- Phase 4 Task 1: Curator judges albums via brief ---
+
+def _comp_album(title="Greatest Hits", artist="Traffic"):
+    return Album(artist=artist, title=title, mbid="mb-comp", first_released=1975,
+                 secondary_types=("Compilation",))
+
+
+def _studio_album(title="John Barleycorn Must Die", artist="Traffic"):
+    return Album(artist=artist, title=title, mbid="mb-studio", first_released=1970,
+                 secondary_types=())
+
+
+def test_album_candidate_rejected_when_compilation_under_not_compilation_brief():
+    """A compilation album is rejected when NotCompilation is in the brief."""
+    alb = _comp_album()
+    candidate = Candidate("Traffic", "Greatest Hits", kind=Kind.ALBUM)
+    curator = Curator(FakeMetadataProvider(albums={"Greatest Hits": alb}))
+    golden = curator.curate(_brief(NotCompilation()), [candidate])
+    entry = golden.entries[0]
+    assert isinstance(entry.item, Album)
+    assert not entry.verdict.admitted
+    assert any("compilation" in v for v in entry.verdict.violations)
+
+
+def test_album_candidate_admitted_when_not_compilation_under_not_compilation_brief():
+    """A studio album is admitted under a NotCompilation brief."""
+    alb = _studio_album()
+    candidate = Candidate("Traffic", "John Barleycorn Must Die", kind=Kind.ALBUM)
+    curator = Curator(FakeMetadataProvider(albums={"John Barleycorn Must Die": alb}))
+    golden = curator.curate(_brief(NotCompilation()), [candidate])
+    entry = golden.entries[0]
+    assert isinstance(entry.item, Album)
+    assert entry.verdict.admitted
+
+
+def test_album_candidate_still_admitted_under_recording_only_brief():
+    """PerformedBy and Studio are no-ops on albums — still admitted."""
+    alb = _studio_album()
+    candidate = Candidate("Traffic", "John Barleycorn Must Die", kind=Kind.ALBUM)
+    curator = Curator(FakeMetadataProvider(albums={"John Barleycorn Must Die": alb}))
+    golden = curator.curate(_brief(Studio(), PerformedBy("Steve Winwood")), [candidate])
+    entry = golden.entries[0]
+    assert isinstance(entry.item, Album)
+    assert entry.verdict.admitted

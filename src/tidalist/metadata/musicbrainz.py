@@ -24,6 +24,8 @@ def album_from_release_group(rg: dict) -> Album:
         title=rg["title"],
         mbid=MBID(rg["id"]) if rg.get("id") else None,
         first_released=first_released,
+        primary_type=rg.get("primary-type"),
+        secondary_types=tuple(rg.get("secondary-type-list") or ()),
     )
 
 
