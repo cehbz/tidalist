@@ -67,6 +67,19 @@ def test_or_separated_performers_primary_then_alternate():
     assert "Krystian Zimerman" in prov.note
 
 
+def test_classical_work_is_album_kind_with_alternates_as_edition_context():
+    # A whole-work recommendation is an album-kind golden unit. Its identity carries
+    # only the primary performer + original year; the alternate recordings are
+    # alternate *editions* of the same work and ride in provenance, never in identity.
+    cand, prov = _one(
+        "Beethoven: Symphony No. 9",
+        "Recommended recording: Karajan (1962) (also Bernstein, Solti)")
+    assert cand.kind is Kind.ALBUM
+    assert cand.artist == "Karajan" and cand.year == 1962
+    assert "Karajan" in prov.note
+    assert "Bernstein" in prov.note and "Solti" in prov.note
+
+
 def test_multiple_entries_yield_multiple_candidates_in_order():
     candidates, provenances, _ = parse_scaruffi(_page(
         "Bach: Brandenburg Concertos",
