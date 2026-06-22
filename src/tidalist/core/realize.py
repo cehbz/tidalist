@@ -139,7 +139,8 @@ def realize(
             items = (pi,) if pi is not None else ()
             realized.append(RealizedEntry(e, items=items, compromise=None))
         elif isinstance(e.item, Album):
-            items_list, compromise = realizer.resolve_album(e.item, preference)
+            effective_preference = e.edition if e.edition is not None else preference
+            items_list, compromise = realizer.resolve_album(e.item, effective_preference)
             realized.append(RealizedEntry(e, items=tuple(items_list), compromise=compromise))
         else:
             realized.append(RealizedEntry(e, items=(), compromise=None))

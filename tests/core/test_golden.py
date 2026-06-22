@@ -214,3 +214,55 @@ def test_album_candidate_still_admitted_under_recording_only_brief():
     entry = golden.entries[0]
     assert isinstance(entry.item, Album)
     assert entry.verdict.admitted
+
+
+# --- Phase 6 Task 1: per-candidate criteria ---
+
+def test_candidate_criteria_are_applied_in_addition_to_brief_criteria():
+    """A Candidate carrying PerformedBy(X) is rejected as cover even with empty brief."""
+    cover = _rec(title="Feelin Alright", artist="Joe Cocker", performer="Joe Cocker")
+    # PerformedBy("Steve Winwood") on the candidate — not in the brief
+    candidate = Candidate("Joe Cocker", "Feelin Alright",
+                          criteria=(PerformedBy("Steve Winwood"),))
+    curator = Curator(FakeMetadataProvider({"Feelin Alright": cover}))
+    golden = curator.curate(_brief(), [candidate])      # empty brief
+    entry = golden.entries[0]
+    assert not entry.verdict.admitted
+    assert any("cover" in v for v in entry.verdict.violations)
+
+
+def test_candidate_criteria_are_combined_with_brief_criteria():
+    """Per-candidate criteria add to brief criteria — both must pass."""
+    studio = _rec(performance=Performance.STUDIO, mbid="s",
+                  performer="Steve Winwood")
+    live = _rec(performance=Performance.LIVE, mbid="l",
+                performer="Steve Winwood")
+    # Brief says studio; candidate says performed_by — only studio+SW recording passes
+    candidate = Candidate("Traffic", "Glad", criteria=(PerformedBy("Steve Winwood"),))
+    curator = Curator(FakeMetadataProvider({"Glad": [studio, live]}))
+    golden = curator.curate(_brief(Studio()), [candidate])
+    entry = golden.entries[0]
+    assert entry.item.mbid == "s"
+    assert entry.verdict.admitted
+
+
+def test_golden_entry_carries_edition_from_candidate():
+    """GoldenEntry.edition is set from candidate.edition."""
+    from tidalist.core.edition import EditionPreference
+    pref = EditionPreference(markers=("steven wilson",), prefer_original=True)
+    alb = _album()
+    candidate = Candidate("Traffic", "John Barleycorn Must Die",
+                          kind=Kind.ALBUM, edition=pref)
+    curator = Curator(FakeMetadataProvider(albums={"John Barleycorn Must Die": alb}))
+    golden = curator.curate(_brief(), [candidate])
+    entry = golden.entries[0]
+    assert entry.edition == pref
+
+
+def test_golden_entry_edition_is_none_when_candidate_has_no_edition():
+    """GoldenEntry.edition is None when candidate carries no edition."""
+    alb = _album()
+    candidate = Candidate("Traffic", "John Barleycorn Must Die", kind=Kind.ALBUM)
+    curator = Curator(FakeMetadataProvider(albums={"John Barleycorn Must Die": alb}))
+    golden = curator.curate(_brief(), [candidate])
+    assert golden.entries[0].edition is None

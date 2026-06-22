@@ -1,9 +1,16 @@
 """Recording: a performance's identity. Candidate: a request to find one."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import TYPE_CHECKING
 
 from .identifiers import ISRC, MBID
+
+if TYPE_CHECKING:
+    from .criteria import Criterion
+    from .edition import EditionPreference
 
 
 class Performance(StrEnum):
@@ -60,6 +67,9 @@ class Candidate:
     year: int | None = None
     isrc: ISRC | None = None
     kind: Kind = Kind.TRACK
+    criteria: tuple[Criterion, ...] = ()
+    edition: EditionPreference | None = None
+    artist_mbid: MBID | None = None
 
     def __post_init__(self):
         if not self.artist.strip() or not self.title.strip():

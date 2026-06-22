@@ -118,7 +118,8 @@ class MusicBrainzMetadata:
         results = self._mb.search_recordings(
             artist=candidate.artist, recording=candidate.title, limit=self._limit)
         hits = results.get("recording-list") or []
-        artist_mbid = self._artist_mbid(candidate.artist)
+        artist_mbid = (str(candidate.artist_mbid) if candidate.artist_mbid is not None
+                       else self._artist_mbid(candidate.artist))
         if artist_mbid is not None:
             hits = [h for h in hits if _credited_to(h, artist_mbid)]
         return [recording_from_musicbrainz(h) for h in hits]
@@ -127,7 +128,8 @@ class MusicBrainzMetadata:
         results = self._mb.search_release_groups(
             artist=candidate.artist, releasegroup=candidate.title, limit=self._limit)
         rgs = results.get("release-group-list") or []
-        artist_mbid = self._artist_mbid(candidate.artist)
+        artist_mbid = (str(candidate.artist_mbid) if candidate.artist_mbid is not None
+                       else self._artist_mbid(candidate.artist))
         if artist_mbid is not None:
             rgs = [rg for rg in rgs if _credited_to(rg, artist_mbid)]
         return [album_from_release_group(rg) for rg in rgs]

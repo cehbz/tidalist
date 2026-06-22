@@ -243,3 +243,45 @@ def test_choose_edition_none_year_sorts_last():
     chosen, compromise = choose_edition(options, pref)
     assert chosen is not None
     assert chosen.ref == "orig"
+
+
+# --- Phase 6 Task 1: realize() uses entry.edition over the global preference ---
+
+class _PreferenceCapturingRealizer(_FakeRealizer):
+    """Records the preference passed to resolve_album."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.resolve_album_preferences: list[EditionPreference] = []
+
+    def resolve_album(self, album, preference):
+        self.resolve_album_preferences.append(preference)
+        return super().resolve_album(album, preference)
+
+
+def test_realize_uses_entry_edition_over_global_preference():
+    """realize() passes entry.edition (not the global preference) when set."""
+    from tidalist.core.golden import GoldenEntry
+    per_entry_pref = EditionPreference(markers=("steven wilson",), prefer_original=True)
+    global_pref = EditionPreference(markers=("mobile fidelity",), prefer_original=False)
+    album = Album(artist="Traffic", title="John Barleycorn Must Die")
+    entry = GoldenEntry(album, Provenance("nl"), Verdict.ok(), edition=per_entry_pref)
+    g = _golden(entry)
+    realizer = _PreferenceCapturingRealizer(
+        {}, albums={"John Barleycorn Must Die": ([PlatformItem("t1", "Glad", ())], None)}
+    )
+    realize(g, realizer, preference=global_pref)
+    assert realizer.resolve_album_preferences == [per_entry_pref]
+
+
+def test_realize_uses_global_preference_when_entry_edition_is_none():
+    """realize() falls back to global preference when entry.edition is None."""
+    from tidalist.core.golden import GoldenEntry
+    global_pref = EditionPreference(markers=("mobile fidelity",), prefer_original=False)
+    album = Album(artist="Traffic", title="John Barleycorn Must Die")
+    entry = GoldenEntry(album, Provenance("nl"), Verdict.ok())   # edition=None
+    g = _golden(entry)
+    realizer = _PreferenceCapturingRealizer(
+        {}, albums={"John Barleycorn Must Die": ([PlatformItem("t1", "Glad", ())], None)}
+    )
+    realize(g, realizer, preference=global_pref)
+    assert realizer.resolve_album_preferences == [global_pref]

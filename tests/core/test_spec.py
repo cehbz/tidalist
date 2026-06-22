@@ -165,3 +165,82 @@ def test_golden_album_entry_serializes_type_fields():
     d = _golden_entry_to_dict(entry)
     assert d["primary_type"] == "Album"
     assert d["secondary_types"] == ["Compilation"]
+
+
+# --- Phase 6 Task 1: per-candidate criteria/edition/artist_mbid in intent ---
+
+def test_intent_round_trips_per_candidate_criteria():
+    """criteria on a Candidate round-trips through to_intent/from_intent."""
+    brief = Brief("x", ())
+    candidates = [Candidate("Traffic", "Glad",
+                            criteria=(PerformedBy("Steve Winwood"), Studio()))]
+    provenances = [Provenance("nl", "note")]
+    c2, _, _ = from_intent(to_intent(brief, candidates, provenances))
+    assert c2[0].criteria == (PerformedBy("Steve Winwood"), Studio())
+
+
+def test_intent_round_trips_per_candidate_edition():
+    """edition on a Candidate round-trips through to_intent/from_intent."""
+    from tidalist.core.edition import EditionPreference
+    pref = EditionPreference(markers=("steven wilson",), prefer_original=True)
+    brief = Brief("x", ())
+    candidates = [Candidate("Traffic", "John Barleycorn Must Die",
+                            kind=Kind.ALBUM, edition=pref)]
+    provenances = [Provenance("nl")]
+    c2, _, _ = from_intent(to_intent(brief, candidates, provenances))
+    assert c2[0].edition == pref
+
+
+def test_intent_round_trips_per_candidate_edition_none():
+    """edition=None omits edition from the serialized dict."""
+    brief = Brief("x", ())
+    candidates = [Candidate("Traffic", "Glad")]
+    provenances = [Provenance("nl")]
+    spec = to_intent(brief, candidates, provenances)
+    assert "edition" not in spec["candidates"][0]
+    c2, _, _ = from_intent(spec)
+    assert c2[0].edition is None
+
+
+def test_intent_round_trips_per_candidate_artist_mbid():
+    """artist_mbid on a Candidate round-trips through to_intent/from_intent."""
+    brief = Brief("x", ())
+    candidates = [Candidate("Traffic", "Glad", artist_mbid=MBID("a-traffic"))]
+    provenances = [Provenance("nl")]
+    c2, _, _ = from_intent(to_intent(brief, candidates, provenances))
+    assert c2[0].artist_mbid == MBID("a-traffic")
+
+
+def test_intent_round_trips_per_candidate_artist_mbid_none():
+    """artist_mbid=None omits the key from the serialized dict."""
+    brief = Brief("x", ())
+    candidates = [Candidate("Traffic", "Glad")]
+    provenances = [Provenance("nl")]
+    spec = to_intent(brief, candidates, provenances)
+    assert "artist_mbid" not in spec["candidates"][0]
+    c2, _, _ = from_intent(spec)
+    assert c2[0].artist_mbid is None
+
+
+def test_golden_entry_edition_round_trips():
+    """GoldenEntry with an edition preference round-trips through to_golden/from_golden."""
+    from tidalist.core.edition import EditionPreference
+    pref = EditionPreference(markers=("steven wilson",), prefer_original=True)
+    brief = Brief("x", ())
+    album = Album(artist="Traffic", title="John Barleycorn Must Die",
+                  mbid=MBID("rg1"), first_released=1970)
+    entry = GoldenEntry(album, Provenance("nl"), Verdict.ok(), edition=pref)
+    g = GoldenPlaylist("x", brief, (entry,))
+    result = from_golden(to_golden(g))
+    assert result.entries[0].edition == pref
+
+
+def test_golden_entry_edition_none_round_trips():
+    """GoldenEntry without edition preference round-trips as None."""
+    brief = Brief("x", ())
+    album = Album(artist="Traffic", title="John Barleycorn Must Die",
+                  mbid=MBID("rg1"), first_released=1970)
+    entry = GoldenEntry(album, Provenance("nl"), Verdict.ok())
+    g = GoldenPlaylist("x", brief, (entry,))
+    result = from_golden(to_golden(g))
+    assert result.entries[0].edition is None

@@ -8,13 +8,26 @@ Intent JSON:
         "criteria": [{"type": "performed_by", "artist": "..."}, {"type": "studio"}]
       },
       "candidates": [
-        {"artist": "...", "title": "...", "album": "...?", "year": 1970,
-         "isrc": "...?", "kind": "track", "note": "<why it belongs>"}
+        {
+          "artist": "...",
+          "title": "...",
+          "album": "...?",
+          "year": 1970,
+          "isrc": "...?",
+          "kind": "track|album",
+          "note": "<why it belongs>",
+          "criteria": [{"type": "performed_by", "artist": "..."}],
+          "edition": {"markers": ["steven wilson"], "prefer_original": true},
+          "artist_mbid": "...?"
+        }
       ]
     }
 
-Criteria are a closed tag union — validated by tag, never eval'd. `note` becomes the
-entry's provenance rationale.
+`kind` defaults to "track"; omit for single tracks. Per-candidate `criteria` are
+combined with the brief's at judging time. `edition` overrides the global realize-time
+edition policy for album candidates. `artist_mbid` is an identity hint that bypasses
+the artist-search call in the MusicBrainz provider. Criteria are a closed tag union —
+validated by tag, never eval'd. `note` becomes the entry's provenance rationale.
 """
 
 from ..core.recording import Candidate

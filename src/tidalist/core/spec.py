@@ -9,6 +9,7 @@ from .recording import Candidate, Credit, Recording, Performance, Kind
 from .album import Album
 from .criteria import PerformedBy, Studio, NotCompilation, NotLive, Criterion, Verdict
 from .brief import Brief
+from .edition import EditionPreference
 from .provenance import Provenance
 from .golden import GoldenPlaylist, GoldenEntry
 
@@ -40,16 +41,40 @@ def _criterion_from_dict(d: dict) -> Criterion:
     raise ValueError(f"unknown criterion type: {kind!r}")
 
 
+# --- edition (de)serialization -----------------------------------------------
+
+def _edition_to_dict(e: EditionPreference) -> dict:
+    return {"markers": list(e.markers), "prefer_original": e.prefer_original}
+
+
+def _edition_from_dict(d: dict) -> EditionPreference:
+    return EditionPreference(markers=tuple(d.get("markers", ())),
+                             prefer_original=bool(d.get("prefer_original", True)))
+
+
 # --- value objects -----------------------------------------------------------
 
 def _candidate_to_dict(c: Candidate) -> dict:
-    return {"artist": c.artist, "title": c.title, "album": c.album,
-            "year": c.year, "isrc": c.isrc, "kind": c.kind.value}
+    d: dict = {"artist": c.artist, "title": c.title, "album": c.album,
+               "year": c.year, "isrc": c.isrc, "kind": c.kind.value}
+    if c.criteria:
+        d["criteria"] = [_criterion_to_dict(cr) for cr in c.criteria]
+    if c.edition is not None:
+        d["edition"] = _edition_to_dict(c.edition)
+    if c.artist_mbid is not None:
+        d["artist_mbid"] = str(c.artist_mbid)
+    return d
 
 
 def _candidate_from_dict(d: dict) -> Candidate:
+    criteria = tuple(_criterion_from_dict(cr) for cr in d.get("criteria", []))
+    edition_raw = d.get("edition")
+    edition = _edition_from_dict(edition_raw) if edition_raw is not None else None
+    artist_mbid_raw = d.get("artist_mbid")
+    artist_mbid = MBID(artist_mbid_raw) if artist_mbid_raw is not None else None
     return Candidate(d["artist"], d["title"], d.get("album"), d.get("year"),
-                     _isrc(d.get("isrc")), Kind(d.get("kind", "track")))
+                     _isrc(d.get("isrc")), Kind(d.get("kind", "track")),
+                     criteria=criteria, edition=edition, artist_mbid=artist_mbid)
 
 
 def _brief_to_dict(b: Brief) -> dict:
@@ -83,6 +108,8 @@ def _golden_entry_to_dict(e: GoldenEntry) -> dict:
         "provenance": _provenance_to_dict(e.provenance),
         "verdict": _verdict_to_dict(e.verdict),
     }
+    if e.edition is not None:
+        prov_verdict["edition"] = _edition_to_dict(e.edition)
     if isinstance(e.item, Album):
         a = e.item
         return {"kind": "album", "mbid": a.mbid, "artist": a.artist,
@@ -105,6 +132,8 @@ def _golden_entry_from_dict(d: dict) -> GoldenEntry:
     prov, v = d["provenance"], d["verdict"]
     provenance = Provenance(prov["source"], prov.get("note", ""))
     verdict = Verdict(v["admitted"], tuple(v.get("violations", [])))
+    edition_raw = d.get("edition")
+    edition = _edition_from_dict(edition_raw) if edition_raw is not None else None
     if d.get("kind", "track") == "album":
         item = Album(artist=d["artist"], title=d["title"],
                      mbid=_mbid(d.get("mbid")), first_released=d.get("year"),
@@ -117,7 +146,7 @@ def _golden_entry_from_dict(d: dict) -> GoldenEntry:
             first_released=d.get("year"), duration_s=d.get("duration_s"),
             performance=Performance(d["performance"]),
             credits=tuple(Credit(c["artist"], c["role"]) for c in d.get("credits", [])))
-    return GoldenEntry(item, provenance, verdict)
+    return GoldenEntry(item, provenance, verdict, edition=edition)
 
 
 def to_golden(golden: GoldenPlaylist) -> dict:

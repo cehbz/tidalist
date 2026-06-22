@@ -1,5 +1,5 @@
 from tidalist.core.album import Album
-from tidalist.core.recording import Candidate, Performance
+from tidalist.core.recording import Candidate, Kind, Performance
 from tidalist.metadata.musicbrainz import (recording_from_musicbrainz, MusicBrainzMetadata,
                                            album_from_release_group)
 
@@ -283,3 +283,45 @@ def test_album_from_rg_secondary_types_empty_when_absent():
 def test_album_from_rg_secondary_types_empty_when_list_is_none():
     rg = {**_rg(), "secondary-type-list": None}
     assert album_from_release_group(rg).secondary_types == ()
+
+
+# --- Phase 6 Task 1: artist_mbid hint bypasses search_artists ---
+
+class _TrackingFakeMB(_FakeMB):
+    """Same as _FakeMB but records which methods were called."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.search_artists_calls = 0
+
+    def search_artists(self, artist="", limit=None, **kw):
+        self.search_artists_calls += 1
+        return super().search_artists(artist=artist, limit=limit, **kw)
+
+
+def test_recordings_for_uses_provided_artist_mbid_skipping_search_artists():
+    """When candidate.artist_mbid is set, search_artists is never called."""
+    from tidalist.core.identifiers import MBID
+    mb = _TrackingFakeMB(
+        [_hit_credited("rec-traffic", "a-traffic", "Traffic")],
+        artists=[{"id": "a-traffic", "name": "Traffic"}],
+    )
+    candidate = Candidate("Traffic", "Glad", artist_mbid=MBID("a-traffic"))
+    recs = MusicBrainzMetadata(mb).recordings_for(candidate)
+    assert mb.search_artists_calls == 0
+    assert [r.mbid for r in recs] == ["rec-traffic"]
+
+
+def test_albums_for_uses_provided_artist_mbid_skipping_search_artists():
+    """When candidate.artist_mbid is set, search_artists is never called for albums_for."""
+    from tidalist.core.identifiers import MBID
+    mb = _TrackingFakeMB(
+        [],
+        artists=[{"id": "a-traffic", "name": "Traffic"}],
+        release_groups=[_rg_credited("rg-traffic", "a-traffic", "Traffic")],
+    )
+    candidate = Candidate("Traffic", "John Barleycorn Must Die",
+                          kind=Kind.ALBUM, artist_mbid=MBID("a-traffic"))
+    albums = MusicBrainzMetadata(mb).albums_for(candidate)
+    assert mb.search_artists_calls == 0
+    assert [a.mbid for a in albums] == ["rg-traffic"]
