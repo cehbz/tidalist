@@ -41,7 +41,7 @@ Ports-and-adapters with a pure, I/O-free DDD core. `MetadataProvider` feeds the 
 
 ## Ubiquitous language (glossary)
 
-- **Candidate** — a described item to find (artist, title, album?, year?, isrc?, whole_album?). From the LLM/Scaruffi.
+- **Candidate** — a described item to find (artist, title, album?, year?, isrc?, kind=album|track, per-candidate criteria?, edition?, artist_mbid?). From the LLM/Scaruffi. *(The albums-first evolution replaced the original `whole_album?` flag with `kind`; see `2026-06-21-albums-and-identity.md`.)*
 - **Recording** — the golden unit: a specific performance. Identity bundle: `mbid`, `isrc`, `performance`, `credits`, `first_released`, plus title/artist/album/duration for fallback. (Currently `recording.py` lacks `mbid`/title/artist/album/duration — add them.)
 - **Performance** — STUDIO / LIVE / SESSION / DEMO / UNKNOWN. Recording axis.
 - **Edition** — ORIGINAL / COMPILATION / SINGLE / REISSUE / LIVE / SOUNDTRACK / UNKNOWN. Release axis, lives on a realized track.

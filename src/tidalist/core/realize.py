@@ -50,23 +50,24 @@ def choose_edition(
             if marker in opt.title.casefold():
                 return opt, None
 
-    # Fallback: prefer_original
+    # No marker matched. If a specific edition was requested, that is a reported
+    # compromise regardless of which fallback we take below — never swallow it.
+    compromise = (
+        f"preferred edition ({preference.markers[0]}) unavailable"
+        if preference.markers
+        else None
+    )
+
     if preference.prefer_original:
         def _sort_key(opt: EditionOption):
             year_key = (1, opt.year) if opt.year is not None else (2, 0)
             reissue_key = 1 if any(m in opt.title.casefold() for m in _REISSUE_MARKERS) else 0
             return (year_key[0], year_key[1], reissue_key)
 
-        chosen = min(options, key=_sort_key)
-        compromise = (
-            f"preferred edition ({preference.markers[0]}) unavailable"
-            if preference.markers
-            else None
-        )
-        return chosen, compromise
+        return min(options, key=_sort_key), compromise
 
-    # No preference applicable — return first option, no compromise.
-    return options[0], None
+    # No prefer_original: fall back to the first available option.
+    return options[0], compromise
 
 
 class MatchQuality(StrEnum):

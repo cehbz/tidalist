@@ -48,6 +48,8 @@ def _edition_to_dict(e: EditionPreference) -> dict:
 
 
 def _edition_from_dict(d: dict) -> EditionPreference:
+    # `prefer_original` defaults to True to mirror the EditionPreference VO default,
+    # so an edition block omitting the key deserializes the same as EditionPreference().
     return EditionPreference(markers=tuple(d.get("markers", ())),
                              prefer_original=bool(d.get("prefer_original", True)))
 

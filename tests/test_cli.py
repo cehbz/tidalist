@@ -35,8 +35,7 @@ def _golden_dict():
 def _intent_dict():
     return {
         "name": "Winwood",
-        "brief": {"criteria": [{"type": "performed_by", "artist": "Steve Winwood"}],
-                  "ranking": {"type": "prefer_original"}},
+        "brief": {"criteria": [{"type": "performed_by", "artist": "Steve Winwood"}]},
         "candidates": [{"artist": "Traffic", "title": "Glad", "note": "signature"}],
     }
 

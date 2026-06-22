@@ -245,6 +245,20 @@ def test_choose_edition_none_year_sorts_last():
     assert chosen.ref == "orig"
 
 
+def test_choose_edition_reports_compromise_when_markers_unmatched_even_without_prefer_original():
+    # Markers are present but none match, and prefer_original is off. We still fall back
+    # to an available edition, but the requested edition was unavailable — that is a
+    # compromise and must be reported, never silently swallowed.
+    options = [
+        EditionOption(ref="a", title="Selling England by the Pound", year=1973),
+        EditionOption(ref="b", title="Selling England by the Pound (Remaster)", year=2008),
+    ]
+    pref = EditionPreference(markers=("steven wilson",), prefer_original=False)
+    chosen, compromise = choose_edition(options, pref)
+    assert chosen is not None
+    assert compromise == "preferred edition (steven wilson) unavailable"
+
+
 # --- Phase 6 Task 1: realize() uses entry.edition over the global preference ---
 
 class _PreferenceCapturingRealizer(_FakeRealizer):
