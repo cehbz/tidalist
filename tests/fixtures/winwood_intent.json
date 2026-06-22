@@ -1,0 +1,67 @@
+{
+  "name": "Steve Winwood — Albums & Classics",
+  "brief": {
+    "criteria": [
+      {"type": "not_compilation"}
+    ]
+  },
+  "candidates": [
+    {
+      "artist": "Traffic",
+      "title": "Mr. Fantasy",
+      "kind": "album",
+      "note": "Traffic's debut — Winwood-fronted psychedelic peak, 1967"
+    },
+    {
+      "artist": "Traffic",
+      "title": "John Barleycorn Must Die",
+      "kind": "album",
+      "note": "Traffic's folk-jazz masterwork, 1970"
+    },
+    {
+      "artist": "Traffic",
+      "title": "The Low Spark of High Heeled Boys",
+      "kind": "album",
+      "note": "Traffic's most expansive album, 1971"
+    },
+    {
+      "artist": "Blind Faith",
+      "title": "Blind Faith",
+      "kind": "album",
+      "note": "The supergroup's only album — Winwood, Clapton, Baker, Grech"
+    },
+    {
+      "artist": "The Spencer Davis Group",
+      "title": "Their First LP",
+      "kind": "album",
+      "note": "Early Winwood — teenage prodigy driving rhythm and blues, 1966"
+    },
+    {
+      "artist": "Steve Winwood",
+      "title": "The Finer Things",
+      "kind": "album",
+      "note": "1995 career-spanning box set — a compilation; here to show the not_compilation filter drop a best-of in favor of original albums"
+    },
+    {
+      "artist": "Steve Winwood",
+      "title": "Gimme Some Lovin'",
+      "kind": "track",
+      "note": "Spencer Davis Group breakout — Winwood's voice at its rawest",
+      "criteria": [{"type": "performed_by", "artist": "Steve Winwood"}]
+    },
+    {
+      "artist": "Steve Winwood",
+      "title": "Higher Love",
+      "kind": "track",
+      "note": "1986 solo comeback — Grammy-winning, quintessential Winwood",
+      "criteria": [{"type": "performed_by", "artist": "Steve Winwood"}]
+    },
+    {
+      "artist": "Steve Winwood",
+      "title": "Valerie",
+      "kind": "track",
+      "note": "Arc of a Diver era — spare, evocative, Winwood at his most intimate",
+      "criteria": [{"type": "performed_by", "artist": "Steve Winwood"}]
+    }
+  ]
+}
