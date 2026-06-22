@@ -19,10 +19,18 @@ committing `@pytest.mark.integration` tests for the remaining live shapes: Music
 Discogs result shapes — so regressions in adapter parsing are caught, not just the
 album realize path.
 
-### Cross-source edition/identity drift on classical whole works
-The album path itself is built: Scaruffi whole-work recommendations become
-`kind=Kind.ALBUM` candidates, the golden carries Album units, and the Tidal realizer
-expands an album to its tracks. What remains is matching *reliability* — validate
-identity/edition matching against a corpus of hard cases where sources disagree
-(e.g. the old Sequentia "O Jerusalem": recommended "Sequentia Ensemble (1995)" vs
-Discogs 1997 / Tidal 1998 / performer "Sequentia").
+### Canonical-tracklist selection reliability, and cross-source drift
+Edition *selection* is now built and live-verified: the golden carries MusicBrainz's
+canonical tracklist, and the realizer enumerates editions via the artist discography
+and picks the one of minimum distance to it (Mr. Fantasy resolves to the 10-track
+original, not the 22-track deluxe). Two reliability gaps remain:
+- **Which release is canonical?** `_canonical_tracklist` picks the earliest *standard*
+  (modal-track-count) official release. For works with divergent national editions
+  (the US "Heaven Is in Your Mind" vs UK "Mr. Fantasy" tracklists) this is a real
+  editorial call — the chosen reference decides what "nearest" means. Tunable; validate
+  against a corpus.
+- **Cross-source drift** on hard cases where sources disagree (e.g. the old Sequentia
+  "O Jerusalem": recommended "Sequentia Ensemble (1995)" vs Discogs 1997 / Tidal 1998).
+- Edition-distance **weights** (`core/realize.py`) are first-cut constants; the
+  `year=None` penalty bound and the dominance invariant are domain-bounded, not proven
+  (see the P2 plan's noted minors). Revisit if real playlists misselect.

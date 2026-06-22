@@ -101,10 +101,14 @@ Per candidate:
   `not_live`) — model output is never eval'd. Criteria are type-aware: recording
   criteria are no-ops on albums and vice-versa.
 - **`edition`** — `{"markers": ["steven wilson"], "prefer_original": true}` overrides
-  the realize-time edition policy for an album. Edition preference is **best-effort
-  per backend**: a platform blind to edition provenance (Tidal exposes no
-  remixer/label) reports a compromise and falls back, rather than dropping the album.
-  The default policy already prefers Steven Wilson and Mobile Fidelity remasters.
+  the realize-time edition policy for an album. Editions are selected by **minimum
+  weighted distance from the golden Album**: the golden carries a canonical tracklist
+  (ordered, ISRC-identified, from MusicBrainz), and realize picks the available edition
+  nearest it — tracklist overlap dominates, with title, year, and reissue/kind markers
+  as further dimensions. A requested marker (Steven Wilson / MoFi) is the highest-
+  weighted dimension, so it wins when present and is reported as a *compromise* when no
+  edition offers it. The default policy prefers Steven Wilson and Mobile Fidelity
+  remasters. (This is how a 22-track mono+stereo deluxe loses to the 10-track original.)
 - **`artist_mbid`** — an identity hint that bypasses the artist-search step in the
   MusicBrainz provider, pinning the candidate to an exact artist.
 
@@ -128,13 +132,17 @@ src/tidalist/
 ```
 
 - **MetadataProvider** (`recordings_for` + `albums_for`) feeds the golden stage:
-  providers discover albums and recordings and pin identity (MBIDs, release-group
-  secondary types for comp/live); the Curator discriminates via the brief.
+  providers discover albums and recordings, pin identity (MBIDs, release-group
+  secondary types for comp/live), and attach the album's **canonical tracklist** (the
+  distance reference); the Curator discriminates via the brief.
 - **Realizer** (`resolve` + `resolve_album` + `emit`) feeds the realize stage: the
-  Tidal realizer composes a Catalog and expands an album to its tracks, choosing an
-  edition from a marker-based preference. Spotify / local-file / torrent realizers are
-  drop-in later — the port is ready; impls are built on demand. (A local/torrent
-  realizer with rich edition metadata can honor edition preferences Tidal cannot.)
+  Tidal realizer composes a Catalog, finds an anchor album by search, then enumerates
+  **every** edition via the artist's discography (Tidal search dedupes editions) and
+  picks the one of minimum distance to the golden's canonical tracklist
+  (`Catalog.album_editions` + `core.realize.edition_distance`). Spotify / local-file /
+  torrent realizers are drop-in later — the port is ready; impls are built on demand.
+  (A local/torrent realizer with rich edition metadata can honor edition preferences
+  Tidal cannot.)
 - The domain core is stdlib-only frozen value objects; adapters never leak into it.
 
 ## Develop
