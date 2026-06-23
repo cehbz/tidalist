@@ -214,3 +214,45 @@ def test_performance_facet_mismatch_penalizes_and_reports():
     assert comp.facet == "performance"
     assert comp.desired == "studio" and comp.used == "live"
     assert comp.note == "studio take unavailable; used a live version"
+
+
+# ---------------------------------------------------------------------------
+# QualityPreference + audio-quality tiebreak tests
+# ---------------------------------------------------------------------------
+
+def test_quality_preference_ranks_hires_then_popularity():
+    from tidalist.core.fidelity import QualityPreference, PlatformCandidate
+    pref = QualityPreference()
+    hi = PlatformCandidate(ref="hi", title="t", audio_quality="HI_RES_LOSSLESS", popularity=10)
+    lo = PlatformCandidate(ref="lo", title="t", audio_quality="LOW", popularity=99)
+    # hi-res dominates popularity: hi sorts before lo (smaller tiebreak tuple).
+    assert pref.tiebreak(hi) < pref.tiebreak(lo)
+
+
+def test_quality_preference_popularity_breaks_equal_quality():
+    from tidalist.core.fidelity import QualityPreference, PlatformCandidate
+    pref = QualityPreference()
+    a = PlatformCandidate(ref="a", title="t", audio_quality="LOSSLESS", popularity=80)
+    b = PlatformCandidate(ref="b", title="t", audio_quality="LOSSLESS", popularity=20)
+    assert pref.tiebreak(a) < pref.tiebreak(b)   # higher popularity first
+
+
+def test_choose_quality_tiebreak_picks_hires_on_a_tie():
+    from tidalist.core.fidelity import QualityPreference, PlatformCandidate, choose
+    from tidalist.core.recording import Recording
+    g = Recording(artist="a", title="t")
+    pref = QualityPreference()
+    lossy = PlatformCandidate(ref="aaa", title="t", audio_quality="LOW")
+    hires = PlatformCandidate(ref="hires", title="t", audio_quality="HI_RES_LOSSLESS")
+    # No facets => realize_distance 0 for both => the quality tiebreak decides.
+    chosen, _ = choose(g, [lossy, hires], [], tiebreak=lambda c: (pref.tiebreak(c), c.ref))
+    assert chosen.ref == "hires"
+
+
+def test_choose_default_tiebreak_unchanged_uses_ref():
+    from tidalist.core.fidelity import PlatformCandidate, choose
+    from tidalist.core.recording import Recording
+    g = Recording(artist="a", title="t")
+    a = PlatformCandidate(ref="a", title="t")
+    b = PlatformCandidate(ref="b", title="t")
+    assert choose(g, [b, a], [])[0].ref == "a"   # default ref tiebreak still wins

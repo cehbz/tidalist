@@ -263,12 +263,38 @@ def realize_distance(golden, cand, facets) -> float:
     return sum(f.weight * f.distance(golden, cand) for f in facets)
 
 
-def choose(golden, candidates, facets):
-    """Pick the candidate of minimum realize_distance (ties broken by ref for
-    determinism); return it plus every facet's compromise on the winner."""
+_QUALITY_RANK: dict[str, int] = {
+    "low": 0, "high": 1, "lossless": 2,
+    "hi_res": 3, "hi_res_lossless": 3, "master": 3, "max": 3,
+}
+
+
+def _audio_rank(quality: str | None) -> int:
+    return _QUALITY_RANK.get((quality or "").casefold(), 0)
+
+
+@dataclass(frozen=True, slots=True)
+class QualityPreference:
+    """A specifiable quality tiebreak: prefer hi-res, then more popular. The distance-0
+    quality layer — it breaks ties below every fidelity facet, never overriding one."""
+    prefer_hires: bool = True
+    prefer_popular: bool = True
+
+    def tiebreak(self, cand) -> tuple:
+        """Sort key, lower is better: higher audio rank and higher popularity first."""
+        hires = -_audio_rank(cand.audio_quality) if self.prefer_hires else 0
+        popular = -(cand.popularity or 0) if self.prefer_popular else 0
+        return (hires, popular)
+
+
+def choose(golden, candidates, facets, tiebreak=None):
+    """Pick the candidate of minimum realize_distance; break ties by `tiebreak`
+    (default: the candidate ref, for determinism); return it plus the winner's
+    compromises."""
     if not candidates:
         return None, ()
-    chosen = min(candidates, key=lambda c: (realize_distance(golden, c, facets), c.ref))
+    second = tiebreak if tiebreak is not None else (lambda c: c.ref)
+    chosen = min(candidates, key=lambda c: (realize_distance(golden, c, facets), second(c)))
     comps = tuple(
         c for c in (f.compromise(golden, chosen) for f in facets) if c is not None
     )
