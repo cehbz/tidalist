@@ -269,3 +269,35 @@ def test_resolve_album_editions_empty_falls_back_to_survivors():
     )
     items, _ = TidalRealizer(cat).resolve_album(_domain_album(), EditionPolicy.default())
     assert [i.ref for i in items] == ["T1"]
+
+
+# --- Track-level assembly fallback tests ---
+
+def test_resolve_album_assembles_from_tracks_when_album_absent():
+    golden = Album(artist="Captain Beefheart", title="Trout Mask Replica",
+                   tracklist=(_track_ref(1, "Frownland"),
+                              _track_ref(2, "The Dust Blows Forward"),
+                              _track_ref(3, "Dachau Blues")))
+    # No album matches the search; tracks for positions 1 and 3 exist individually.
+    t1 = _album_track("T1", "Frownland", artists=("Captain Beefheart",))
+    t3 = _album_track("T3", "Dachau Blues", artists=("Captain Beefheart",))
+    cat = FakePlatform([t1, t3], albums=[])      # search_albums empty -> assembly path
+    items, comps = TidalRealizer(cat).resolve_album(golden, EditionPolicy.default())
+    assert [i.ref for i in items] == ["T1", "T3"]
+    assert len(comps) == 1 and comps[0].facet == "album-source"
+    assert "2/3" in comps[0].note
+    assert "2" in comps[0].note                  # missing position 2 reported
+
+
+def test_resolve_album_gaps_when_no_tracks_assemble():
+    golden = Album(artist="X", title="Absent Album", tracklist=(_track_ref(1, "Nope"),))
+    cat = FakePlatform([], albums=[])
+    items, comps = TidalRealizer(cat).resolve_album(golden, EditionPolicy.default())
+    assert items == [] and comps == ()
+
+
+def test_resolve_album_no_tracklist_gaps():
+    golden = Album(artist="X", title="Absent Album")   # no tracklist -> cannot assemble
+    cat = FakePlatform([], albums=[])
+    items, comps = TidalRealizer(cat).resolve_album(golden, EditionPolicy.default())
+    assert items == [] and comps == ()

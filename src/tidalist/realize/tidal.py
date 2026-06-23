@@ -15,7 +15,7 @@ from ..core.fidelity import (
     recording_artist_match, Compromise,
 )
 from ..core.edition import EditionPreference
-from ..core.album import Album
+from ..core.album import Album, TrackRef
 
 
 class TidalRealizer:
@@ -43,7 +43,7 @@ class TidalRealizer:
     ) -> tuple[list[PlatformItem], tuple]:
         survivors = self._search_survivors(album)
         if not survivors:
-            return [], ()
+            return self._assemble_from_tracks(album)
         anchor = survivors[0]
         # The discography gives the full edition set; fall back to the search
         # survivors when it's empty (so `editions` is always non-empty here).
@@ -61,6 +61,24 @@ class TidalRealizer:
         tracks = tuple(self._platform.album_tracks(edition.id)) if with_tracks else ()
         return PlatformCandidate(ref=str(edition.id), title=edition.title,
                                  artists=edition.artists, year=edition.year, tracks=tracks)
+
+    def _assemble_from_tracks(self, album: Album) -> tuple[list[PlatformItem], tuple[Compromise, ...]]:
+        """When no edition of the release-group is on the platform, assemble the
+        canonical tracklist track-by-track from individual catalog tracks."""
+        if not album.tracklist:
+            return [], ()
+        items: list[PlatformItem] = []
+        missing: list[int] = []
+        for tr in album.tracklist:
+            item, _ = self.resolve(_recording_from_trackref(album, tr))
+            if item is not None:
+                items.append(item)
+            else:
+                missing.append(tr.position)
+        if not items:
+            return [], ()
+        comp = _album_source_compromise(album, len(items), len(album.tracklist), missing)
+        return items, (comp,)
 
     def _search_survivors(self, album: Album):
         for query in _anchor_queries(album):
@@ -82,6 +100,21 @@ class TidalRealizer:
 
 def _query(recording: Recording) -> str:
     return f"{recording.artist} {recording.title}".strip()
+
+
+def _recording_from_trackref(album: Album, tr: TrackRef) -> Recording:
+    return Recording(artist=album.artist, title=tr.title, isrc=tr.isrc,
+                     mbid=tr.mbid, duration_s=tr.duration_s)
+
+
+def _album_source_compromise(album: Album, found: int, total: int,
+                              missing: list[int]) -> Compromise:
+    note = (f"album '{album.title}' unavailable; assembled {found}/{total} tracks "
+            f"from individual catalog tracks")
+    if missing:
+        note += f" (missing positions: {', '.join(str(p) for p in missing)})"
+    return Compromise("album-source", album.title,
+                      f"assembled {found}/{total} tracks", note)
 
 
 def _strip_leading_the(s: str) -> str:
