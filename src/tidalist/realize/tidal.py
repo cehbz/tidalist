@@ -9,7 +9,8 @@ from ..core.ports import Platform
 from ..core.identifiers import TrackId
 from ..core.recording import Recording
 from ..core.catalog import Track
-from ..core.realize import PlatformItem, MatchQuality, EditionOption, choose_edition
+from ..core.realize import PlatformItem, MatchQuality
+from ..core.fidelity import PlatformCandidate, IdentityFacet, EditionFacet, choose
 from ..core.edition import EditionPreference
 from ..core.album import Album
 
@@ -33,35 +34,27 @@ class TidalRealizer:
         self,
         album: Album,
         preference: EditionPreference,
-    ) -> tuple[list[PlatformItem], str | None]:
+    ) -> tuple[list[PlatformItem], tuple]:
         survivors = self._search_survivors(album)
         if not survivors:
-            return [], None
+            return [], ()
         anchor = survivors[0]
         # The discography gives the full edition set; fall back to the search
         # survivors when it's empty (so `editions` is always non-empty here).
         editions = self._platform.album_editions(anchor.id) or survivors
-        if album.tracklist:
-            options = [
-                EditionOption(
-                    ref=str(e.id),
-                    title=e.title,
-                    year=e.year,
-                    tracks=tuple(self._platform.album_tracks(e.id)),
-                )
-                for e in editions
-            ]
-        else:
-            options = [
-                EditionOption(ref=str(e.id), title=e.title, year=e.year)
-                for e in editions
-            ]
-        chosen, compromise = choose_edition(options, preference, album)
+        candidates = [self._candidate(e, with_tracks=bool(album.tracklist)) for e in editions]
+        facets = [IdentityFacet(), EditionFacet(preference)]
+        chosen, comps = choose(album, candidates, facets)
         if chosen is None:
-            return [], None
+            return [], ()
         tracks = chosen.tracks or tuple(self._platform.album_tracks(TrackId(chosen.ref)))
         items = [_item(t, MatchQuality.STRONG) for t in tracks]
-        return items, compromise
+        return items, comps
+
+    def _candidate(self, edition, with_tracks: bool) -> PlatformCandidate:
+        tracks = tuple(self._platform.album_tracks(edition.id)) if with_tracks else ()
+        return PlatformCandidate(ref=str(edition.id), title=edition.title,
+                                 artists=edition.artists, year=edition.year, tracks=tracks)
 
     def _search_survivors(self, album: Album):
         for query in _anchor_queries(album):

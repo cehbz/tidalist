@@ -85,7 +85,7 @@ def test_resolve_album_drops_wrong_artist():
         _domain_album(), EditionPolicy.default()
     )
     assert items == []
-    assert compromise is None
+    assert compromise == ()
 
 
 def test_resolve_album_picks_original_over_deluxe():
@@ -129,7 +129,7 @@ def test_resolve_album_returns_empty_when_nothing_matches():
         _domain_album(), EditionPolicy.default()
     )
     assert items == []
-    assert compromise is None
+    assert compromise == ()
 
 
 # --- Edition-distance / discography-enumeration tests ---
