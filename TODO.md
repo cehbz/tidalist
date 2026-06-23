@@ -5,6 +5,39 @@ phase status live in `docs/superpowers/plans/2026-06-20-tidalist-architecture.md
 
 ## Open
 
+### Uniform best-effort realize across all fidelity axes (the big next design)
+`edition_distance` is the first slice of a general `realize_distance(golden_item,
+platform_candidate)` over **identity + release-class + performance + edition**. Today
+only edition is built; the other axes are resolved at curation and then either gapped
+or *silently substituted* at realize — both wrong. Target model: the golden specifies a
+desired value per axis; realize observes each axis best-effort on platform candidates,
+picks the nearest, and emits a **compromise per axis it couldn't satisfy**; a gap is the
+last resort. Concretely:
+- **No silent substitution.** If the studio ISRC is absent and only a live take exists,
+  resolve it but report "studio take unavailable; used a live version" (or gap if the
+  brief is strict) — don't swap silently.
+- **Track-level album fallback.** If a release-group is absent on the backend but its
+  tracks exist on a comp/live album, assemble the canonical tracklist track-by-track and
+  report the source — don't gap an obtainable album.
+- **Platform observation per axis.** Best-effort read of release-class / performance on
+  platform candidates (title + identity now; structured when a rich-metadata backend —
+  torrent/local — lands).
+- **Distance-0 tiebreak / quality-preference layer.** When candidates tie on fidelity
+  (same ISRC on the original album *and* a comp; two identical pressings; FLAC vs lossy),
+  break the tie by a *specifiable* secondary preference (original-source > comp, hi-res >
+  lossy, popularity) — same shape as `EditionPreference`. Currently `min()` breaks ties
+  by arbitrary list order (latent non-determinism). Ties into the deferred "Every Noise /
+  representative-vs-distinctive / quality signals" idea.
+This is its own branch + session; it may reshape the value objects (a platform candidate
+gaining observed class/performance).
+
+### Golden JSON back-compat for release traits
+`Album.traits` (typed `ReleaseTrait`) replaced the old stringly-typed
+`secondary_types`/`primary_type`. A golden JSON written before that change silently
+reloads with `traits=frozenset()` (its comp/live classification dropped). No such files
+exist in-repo; add a lenient reader (`traits` else map legacy `secondary_types`) only if
+external golden files need to survive the change.
+
 ### Rename the repo to match the package
 The package, distribution, and CLI are all `tidalist`, but the GitHub repo and local
 dir are still `scaruffi_tidal`. Rename `cehbz/scaruffi_tidal` → `cehbz/tidalist`
