@@ -26,9 +26,11 @@ W_TITLE     = 10          # title mismatch penalty
 W_YEAR      = 1           # per-year distance from golden's first_released
 W_REISSUE   = 5           # per kind-marker found in option title
 
-# Weight constant for identity facet (ISRC exactness).
-# Must strictly exceed W_MARKER so a single ISRC mismatch dominates all other facets.
-W_IDENTITY = 1_000_000_000  # identity dominates every other facet
+# Fuzzy-closeness weights for recording identity when ISRC doesn't decide.
+# title/artist dominate W_PERFORMANCE (100); duration is the finest tiebreak.
+W_FUZZY_TITLE  = 1000
+W_FUZZY_ARTIST = 1000
+W_FUZZY_DUR    = 1
 
 # Weight constant for performance facet (studio/live mismatch).
 W_PERFORMANCE = 100   # studio/live mismatch penalty for recordings
@@ -42,6 +44,14 @@ _KIND_MARKERS = (
 def _norm(s: str | None) -> str:
     """Normalise a string for comparison: casefold + strip."""
     return (s or "").casefold().strip()
+
+
+def recording_artist_match(recording: "Recording", artists: tuple[str, ...]) -> bool:
+    """True if a performer of the recording overlaps the candidate's artists."""
+    performers = {_norm(c.artist) for c in recording.credits if c.role == "performer"}
+    performers.add(_norm(recording.artist))
+    return any(p and any(p in _norm(a) or _norm(a) in p for a in artists)
+               for p in performers)
 
 
 @dataclass(frozen=True, slots=True)
@@ -169,16 +179,29 @@ class EditionFacet:
 
 @dataclass(frozen=True, slots=True)
 class IdentityFacet:
-    """ISRC exactness facet: penalizes recordings with mismatched ISRCs; albums always score 0."""
+    """Recording identity facet: exact ISRC match scores 0; albums always score 0.
+
+    When ISRCs are absent or differ, falls back to fuzzy closeness over title,
+    artist, and duration so a different-ISRC live take is ranked by content
+    similarity rather than being nuked below a no-ISRC wrong song.
+    """
     name: str = "identity"
     weight: float = 1.0
 
     def distance(self, golden, cand) -> float:
-        """Return W_IDENTITY if golden is a Recording with ISRC and both ISRCs are present but unequal;
-        otherwise return 0.0 (golden is Album, or either ISRC is missing, or ISRCs match)."""
-        if isinstance(golden, Recording) and golden.isrc is not None and cand.isrc is not None:
-            return 0.0 if golden.isrc == cand.isrc else W_IDENTITY
-        return 0.0
+        if not isinstance(golden, Recording):
+            return 0.0
+        # Exact ISRC is a positive identity signal.
+        if golden.isrc is not None and cand.isrc is not None and golden.isrc == cand.isrc:
+            return 0.0
+        # Otherwise fuzzy closeness: title / artist / duration.
+        d = 0.0
+        if _norm(golden.title) != _norm(cand.title):
+            d += W_FUZZY_TITLE
+        if not recording_artist_match(golden, cand.artists):
+            d += W_FUZZY_ARTIST
+        d += W_FUZZY_DUR * abs((golden.duration_s or 0) - (cand.duration_s or 0))
+        return d
 
     def compromise(self, golden, cand):
         """Never emits a compromise."""

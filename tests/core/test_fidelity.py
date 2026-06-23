@@ -2,7 +2,7 @@ from dataclasses import dataclass as _dc
 
 from tidalist.core.fidelity import (
     Compromise, PlatformCandidate, realize_distance, choose,
-    IdentityFacet, W_IDENTITY, W_MARKER,
+    IdentityFacet, W_FUZZY_TITLE, W_FUZZY_ARTIST, W_FUZZY_DUR,
     EditionFacet, edition_distance,
 )
 from tidalist.core.edition import EditionPreference
@@ -77,26 +77,42 @@ def test_platform_candidate_carries_duration():
     assert c.duration_s == 386
 
 
-def test_identity_dominates_marker():
-    assert W_IDENTITY > W_MARKER
-
-
 def test_identity_recording_isrc_match_is_zero():
     g = Recording(artist="Traffic", title="Glad", isrc=ISRC("GB1"))
     cand = PlatformCandidate(ref="t1", title="Glad", isrc=ISRC("GB1"))
     assert IdentityFacet().distance(g, cand) == 0.0
 
 
-def test_identity_recording_isrc_mismatch_is_w_identity():
-    g = Recording(artist="Traffic", title="Glad", isrc=ISRC("GB1"))
-    cand = PlatformCandidate(ref="t2", title="Glad", isrc=ISRC("GB2"))
-    assert IdentityFacet().distance(g, cand) == W_IDENTITY
-
-
-def test_identity_recording_unknown_isrc_is_zero():
-    g = Recording(artist="Traffic", title="Glad")          # no isrc
-    cand = PlatformCandidate(ref="t3", title="Glad", isrc=ISRC("GB9"))
+def test_identity_recording_isrc_mismatch_falls_back_to_fuzzy():
+    # Different ISRC but identical title/artist/duration -> fuzzy match -> 0 (no cliff).
+    g = Recording(artist="Traffic", title="Glad", isrc=ISRC("GB1"), duration_s=200)
+    cand = PlatformCandidate(ref="t2", title="Glad", isrc=ISRC("GB2"),
+                             artists=("Traffic",), duration_s=200)
     assert IdentityFacet().distance(g, cand) == 0.0
+
+
+def test_identity_recording_fuzzy_full_match_is_zero():
+    g = Recording(artist="Traffic", title="Glad", duration_s=200)   # no ISRC
+    cand = PlatformCandidate(ref="t3", title="Glad", artists=("Traffic",), duration_s=200)
+    assert IdentityFacet().distance(g, cand) == 0.0
+
+
+def test_identity_recording_title_mismatch_adds_fuzzy_title():
+    g = Recording(artist="Traffic", title="Glad", duration_s=200)
+    cand = PlatformCandidate(ref="x", title="Glad Rag Doll", artists=("Traffic",), duration_s=200)
+    assert IdentityFacet().distance(g, cand) == W_FUZZY_TITLE
+
+
+def test_identity_recording_artist_mismatch_adds_fuzzy_artist():
+    g = Recording(artist="Traffic", title="Glad", duration_s=200)
+    cand = PlatformCandidate(ref="x", title="Glad", artists=("Other Band",), duration_s=200)
+    assert IdentityFacet().distance(g, cand) == W_FUZZY_ARTIST
+
+
+def test_identity_recording_duration_delta_adds_fuzzy_dur():
+    g = Recording(artist="Traffic", title="Glad", duration_s=386)
+    cand = PlatformCandidate(ref="x", title="Glad", artists=("Traffic",), duration_s=380)
+    assert IdentityFacet().distance(g, cand) == W_FUZZY_DUR * 6
 
 
 def test_identity_album_is_zero():
