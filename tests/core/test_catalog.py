@@ -1,6 +1,6 @@
 import pytest
 
-from tidalist.core.catalog import Edition, Track
+from tidalist.core.catalog import Track
 
 
 def test_primary_artist_is_first():
@@ -18,8 +18,3 @@ def test_track_year_must_be_int_not_datetime_string():
 def test_track_requires_at_least_one_artist():
     with pytest.raises(ValueError):
         Track(id="1", title="Glad", artists=())
-
-
-def test_track_edition_defaults_to_unknown():
-    t = Track(id="1", title="Glad", artists=("Traffic",))
-    assert t.edition is Edition.UNKNOWN

@@ -1,20 +1,8 @@
 """Catalog value objects: a playable Track and a platform album descriptor."""
 
 from dataclasses import dataclass
-from enum import StrEnum
 
 from .identifiers import ISRC, TrackId
-
-
-class Edition(StrEnum):
-    """How a release presents a recording. A Track property, distinct from Performance."""
-    ORIGINAL = "original"
-    COMPILATION = "compilation"
-    SINGLE = "single"
-    REISSUE = "reissue"
-    LIVE = "live"          # live-album release (cf. Performance.LIVE)
-    SOUNDTRACK = "soundtrack"
-    UNKNOWN = "unknown"
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,7 +13,6 @@ class Track:
     isrc: ISRC | None = None
     album: str | None = None
     year: int | None = None
-    edition: Edition = Edition.UNKNOWN
     duration_s: int | None = None
 
     def __post_init__(self):

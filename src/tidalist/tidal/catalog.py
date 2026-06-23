@@ -5,7 +5,7 @@ from datetime import datetime
 import tidalapi
 
 from ..core.identifiers import ISRC, TrackId, PlaylistId
-from ..core.catalog import Track, Edition, CatalogAlbum
+from ..core.catalog import Track, CatalogAlbum
 
 
 class TidalCatalog:
@@ -53,7 +53,6 @@ def track_from_tidal(t) -> Track:
         isrc=ISRC(t.isrc) if getattr(t, "isrc", None) else None,
         album=t.album.name if getattr(t, "album", None) else None,
         year=_year(t),
-        edition=Edition.UNKNOWN,
         duration_s=getattr(t, "duration", None),
     )
 

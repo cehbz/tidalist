@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 class Performance(StrEnum):
-    """How a recording was made (a live take is a distinct ISRC). Distinct from Edition."""
+    """How a recording was made (a live take is a distinct ISRC)."""
     STUDIO = "studio"
     LIVE = "live"
     SESSION = "session"
