@@ -40,7 +40,7 @@ class TidalRealizer:
         self,
         album: Album,
         preference: EditionPreference,
-    ) -> tuple[list[PlatformItem], tuple]:
+    ) -> tuple[list[PlatformItem], tuple[Compromise, ...]]:
         survivors = self._search_survivors(album)
         if not survivors:
             return self._assemble_from_tracks(album)
@@ -113,7 +113,7 @@ def _album_source_compromise(album: Album, found: int, total: int,
             f"from individual catalog tracks")
     if missing:
         note += f" (missing positions: {', '.join(str(p) for p in missing)})"
-    return Compromise("album-source", album.title,
+    return Compromise("album-source", "original album",
                       f"assembled {found}/{total} tracks", note)
 
 

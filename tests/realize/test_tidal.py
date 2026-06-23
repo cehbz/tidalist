@@ -286,7 +286,7 @@ def test_resolve_album_assembles_from_tracks_when_album_absent():
     assert [i.ref for i in items] == ["T1", "T3"]
     assert len(comps) == 1 and comps[0].facet == "album-source"
     assert "2/3" in comps[0].note
-    assert "2" in comps[0].note                  # missing position 2 reported
+    assert "missing positions: 2" in comps[0].note   # missing position 2 reported
 
 
 def test_resolve_album_gaps_when_no_tracks_assemble():
