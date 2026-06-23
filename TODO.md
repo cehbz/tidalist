@@ -6,6 +6,16 @@ phase status live in `docs/superpowers/plans/2026-06-20-tidalist-architecture.md
 ## Open
 
 ### Uniform best-effort realize across all fidelity axes (the big next design)
+**Status (2026-06-23):** Slice 1 landed on branch `uniform-realize-slice-1` — the uniform
+`realize_distance` / `Facet` / `choose` / `PlatformCandidate` / typed-`Compromise` framework
+(`core/fidelity.py`) plus `IdentityFacet` + `EditionFacet`, with edition selection migrated
+onto it. Behavior-preserving: Mr. Fantasy still resolves to the 10-track original (offline
+306 green + live edition proof green). Remaining: slice 2 (recording facets +
+no-silent-substitution), slice 3 (track-level album fallback — Trout Mask Replica fixture),
+slice 4 (quality-preference depth). Spec:
+`docs/superpowers/specs/2026-06-23-uniform-realize-design.md`; plan:
+`docs/superpowers/plans/2026-06-23-uniform-realize-slice-1.md`.
+
 `edition_distance` is the first slice of a general `realize_distance(golden_item,
 platform_candidate)` over **identity + release-class + performance + edition**. Today
 only edition is built; the other axes are resolved at curation and then either gapped
