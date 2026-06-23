@@ -134,6 +134,31 @@ def edition_distance(
     return total
 
 
+@runtime_checkable
+class Facet(Protocol):
+    name: str
+    weight: float
+    def distance(self, golden: "Album | Recording", cand: "PlatformCandidate") -> float: ...
+    def compromise(self, golden: "Album | Recording",
+                   cand: "PlatformCandidate") -> "Compromise | None": ...
+
+
+def realize_distance(golden, cand, facets) -> float:
+    return sum(f.weight * f.distance(golden, cand) for f in facets)
+
+
+def choose(golden, candidates, facets):
+    """Pick the candidate of minimum realize_distance (ties broken by ref for
+    determinism); return it plus every facet's compromise on the winner."""
+    if not candidates:
+        return None, ()
+    chosen = min(candidates, key=lambda c: (realize_distance(golden, c, facets), c.ref))
+    comps = tuple(
+        c for c in (f.compromise(golden, chosen) for f in facets) if c is not None
+    )
+    return chosen, comps
+
+
 def choose_edition(
     options: list[EditionOption],
     preference: EditionPreference,
