@@ -6,15 +6,19 @@ phase status live in `docs/superpowers/plans/2026-06-20-tidalist-architecture.md
 ## Open
 
 ### Uniform best-effort realize across all fidelity axes (the big next design)
-**Status (2026-06-23):** Slice 1 landed on branch `uniform-realize-slice-1` — the uniform
+**Status (2026-06-23):** Slices 1–2 landed (branch `uniform-realize-slice-1`, then
+`uniform-realize-slice-2` stacked on it; not merged to main). Slice 1: the uniform
 `realize_distance` / `Facet` / `choose` / `PlatformCandidate` / typed-`Compromise` framework
-(`core/fidelity.py`) plus `IdentityFacet` + `EditionFacet`, with edition selection migrated
-onto it. Behavior-preserving: Mr. Fantasy still resolves to the 10-track original (offline
-306 green + live edition proof green). Remaining: slice 2 (recording facets +
-no-silent-substitution), slice 3 (track-level album fallback — Trout Mask Replica fixture),
-slice 4 (quality-preference depth). Spec:
-`docs/superpowers/specs/2026-06-23-uniform-realize-design.md`; plan:
-`docs/superpowers/plans/2026-06-23-uniform-realize-slice-1.md`.
+(`core/fidelity.py`) + `IdentityFacet` + `EditionFacet`, edition selection migrated onto it —
+behavior-preserving (Mr. Fantasy → 10-track; offline + live edition proof green). Slice 2:
+`PerformanceFacet` + a fuzzy-closeness `IdentityFacet` (ISRC as a positive exact-match signal,
+the old `W_IDENTITY` cliff removed); recording resolution is now facet-native via `choose`, and
+`resolve` reports a typed compromise instead of silently substituting a live take for a studio
+one (offline 314 green). **Outstanding:** a live no-silent-substitution confirmation is
+deferred (no stable Tidal fixture; deterministic behavior is proven offline). Remaining slices:
+slice 3 (track-level album fallback — Trout Mask Replica fixture; adds `ReleaseClassFacet`),
+slice 4 (quality-preference depth / `AudioFacet`, superseding `choose`'s `ref` tiebreak). Specs
+in `docs/superpowers/specs/`, plans in `docs/superpowers/plans/`.
 
 `edition_distance` is the first slice of a general `realize_distance(golden_item,
 platform_candidate)` over **identity + release-class + performance + edition**. Today
