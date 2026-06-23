@@ -38,6 +38,15 @@ def _norm(s: str | None) -> str:
 
 
 @dataclass(frozen=True, slots=True)
+class Compromise:
+    """A reported deviation along one fidelity facet between desired and used."""
+    facet: str
+    desired: str
+    used: str
+    note: str
+
+
+@dataclass(frozen=True, slots=True)
 class EditionOption:
     """One available edition on a platform (`ref` is the platform handle)."""
     ref: str
