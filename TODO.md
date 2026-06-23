@@ -56,6 +56,40 @@ last resort. Concretely:
 This is its own branch + session; it may reshape the value objects (a platform candidate
 gaining observed class/performance).
 
+### Intent and curation: ordering, dedup, band-member credits
+
+Surfaced by the live Steve Winwood end-to-end (NL brief -> agent intent -> curate):
+
+- **Playlist ordering.** No way to specify output order. Add an ordering directive to the
+  intent (e.g. the NL "ordered by decreasing best-ness" -> the agent emits an ordering the
+  Curator preserves and realize/publish honor). Entries currently keep candidate order.
+- **Dedup a track already on an included album.** A track whose recording sits on an album
+  also in the playlist should not also appear standalone ("Higher Love" inside *Back in the
+  High Life* and as a track; "The Low Spark of High Heeled Boys" as both album and track).
+  Needs matching the track to an included album's tracklist at curation, and a policy for
+  which wins.
+- **`performed_by(member)` wrongly rejects band recordings.** MusicBrainz credits the group
+  as the recording artist, not the individual member, so `performed_by("Steve Winwood")`
+  rejects the original Spencer Davis Group / Traffic / Blind Faith recordings as "likely a
+  cover" (only his solo tracks pass). Cover detection for a band member needs
+  band-membership / relationship awareness, not just a performer-credit string match.
+  (Also seen: recording selection sometimes picks a later re-recording, e.g. "I'm a Man"
+  resolving to 1988, "While You See a Chance" to 1992 -- ties into the existing
+  canonical-tracklist / cross-source drift item below.)
+- **No per-artist caching.** Curate re-resolves the artist MBID per candidate (`_artist_mbid`
+  calls `search_artists` each time) and realize re-fetches the full discography per album
+  (`album_editions` -> `artist.get_albums()`), so multiple same-artist entries (four Traffic
+  albums) redundantly repeat the same lookups. Memoize artist resolution and the discography
+  per artist within a run; the MusicBrainz 1 req/s throttle makes this the dominant curate
+  cost (the 20-candidate run took ~8 min; realize was ~35s).
+- **Local backends to dodge rate limits (structural mitigation).** The `MetadataProvider` port
+  already lets a local MusicBrainz/Discogs mirror (both ship full data dumps) replace the live
+  API, removing the curate throttle entirely -- the bigger win. Tidal cannot be mirrored (DRM
+  streaming), so the realize-side options are a persistent lookup cache (cuts repeated
+  discography fetches) or the roadmapped local-file realizer (tag-index scan -> M3U8/XSPF) that
+  needs no streaming API. Design is noted in the architecture plan; this surfaces it as
+  actionable future work.
+
 ### Golden JSON back-compat for release traits
 `Album.traits` (typed `ReleaseTrait`) replaced the old stringly-typed
 `secondary_types`/`primary_type`. A golden JSON written before that change silently
