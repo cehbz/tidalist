@@ -139,6 +139,31 @@ def edition_distance(
 
 
 @dataclass(frozen=True, slots=True)
+class EditionFacet:
+    """Edition-fidelity facet: wraps edition_distance; no-ops only for Recordings."""
+    preference: EditionPreference
+    name: str = "edition"
+    weight: float = 1.0
+
+    def distance(self, golden, cand) -> float:
+        # No-op only for recordings. golden may be None (legacy choose_edition):
+        # edition_distance handles None and still scores marker + reissue dimensions.
+        if isinstance(golden, Recording):
+            return 0.0
+        return edition_distance(golden, cand, self.preference)
+
+    def compromise(self, golden, cand):
+        if isinstance(golden, Recording) or not self.preference.markers:
+            return None
+        title_lower = cand.title.casefold()
+        if any(m in title_lower for m in self.preference.markers):
+            return None
+        marker = self.preference.markers[0]
+        return Compromise("edition", marker, "(no preferred edition)",
+                          f"preferred edition ({marker}) unavailable")
+
+
+@dataclass(frozen=True, slots=True)
 class IdentityFacet:
     """ISRC exactness facet: penalizes recordings with mismatched ISRCs; albums always score 0."""
     name: str = "identity"
@@ -186,23 +211,7 @@ def choose_edition(
     preference: EditionPreference,
     golden: Album | None = None,
 ) -> tuple[EditionOption | None, str | None]:
-    """Pick the best available edition given a preference; return (chosen, compromise).
-
-    Chooses the EditionOption with the minimum edition_distance from golden.
-    A compromise is reported when markers were requested but none are present in
-    the chosen option.
-    """
-    if not options:
-        return None, None
-
-    chosen = min(options, key=lambda o: edition_distance(golden, o, preference))
-
-    # Determine compromise: markers were requested but the chosen edition carries none.
-    compromise: str | None = None
-    if preference.markers:
-        chosen_title_lower = chosen.title.casefold()
-        no_marker_matched = not any(m in chosen_title_lower for m in preference.markers)
-        if no_marker_matched:
-            compromise = f"preferred edition ({preference.markers[0]}) unavailable"
-
-    return chosen, compromise
+    """Back-compat edition selector: delegates to choose over a single EditionFacet,
+    returning the chosen option and a string compromise (or None)."""
+    chosen, comps = choose(golden, options, [EditionFacet(preference)])
+    return chosen, (comps[0].note if comps else None)

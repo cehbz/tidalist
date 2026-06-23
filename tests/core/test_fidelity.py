@@ -2,8 +2,10 @@ from dataclasses import dataclass as _dc
 
 from tidalist.core.fidelity import (
     Compromise, PlatformCandidate, realize_distance, choose,
-    IdentityFacet, W_IDENTITY, W_MARKER
+    IdentityFacet, W_IDENTITY, W_MARKER,
+    EditionFacet, edition_distance,
 )
+from tidalist.core.edition import EditionPreference
 from tidalist.core.identifiers import ISRC
 from tidalist.core.recording import Performance, Recording
 from tidalist.core.album import Album
@@ -96,3 +98,39 @@ def test_identity_album_is_zero():
     cand = PlatformCandidate(ref="A1", title="Mr. Fantasy")
     assert IdentityFacet().distance(g, cand) == 0.0
     assert IdentityFacet().compromise(g, cand) is None
+
+
+# ---------------------------------------------------------------------------
+# EditionFacet tests
+# ---------------------------------------------------------------------------
+
+def test_edition_facet_distance_matches_edition_distance_for_albums():
+    g = Album(artist="Yes", title="Close to the Edge", first_released=1972)
+    pref = EditionPreference(markers=(), prefer_original=True)
+    cand = PlatformCandidate(ref="orig", title="Close to the Edge", year=1972)
+    assert EditionFacet(pref).distance(g, cand) == edition_distance(g, cand, pref)
+
+
+def test_edition_facet_no_op_on_recordings():
+    g = Recording(artist="Yes", title="Roundabout")
+    pref = EditionPreference(markers=("steven wilson",))
+    cand = PlatformCandidate(ref="x", title="Roundabout")
+    assert EditionFacet(pref).distance(g, cand) == 0.0
+    assert EditionFacet(pref).compromise(g, cand) is None
+
+
+def test_edition_facet_compromise_when_no_marker_present():
+    g = Album(artist="Yes", title="Close to the Edge", first_released=1972)
+    pref = EditionPreference(markers=("steven wilson",), prefer_original=True)
+    cand = PlatformCandidate(ref="orig", title="Close to the Edge", year=1972)
+    comp = EditionFacet(pref).compromise(g, cand)
+    assert comp is not None
+    assert comp.facet == "edition" and comp.desired == "steven wilson"
+    assert comp.note == "preferred edition (steven wilson) unavailable"
+
+
+def test_edition_facet_no_compromise_when_marker_present():
+    g = Album(artist="Yes", title="Close to the Edge", first_released=1972)
+    pref = EditionPreference(markers=("steven wilson",))
+    cand = PlatformCandidate(ref="sw", title="Close to the Edge (Steven Wilson Mix)", year=2013)
+    assert EditionFacet(pref).compromise(g, cand) is None
