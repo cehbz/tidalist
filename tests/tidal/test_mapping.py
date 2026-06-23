@@ -2,7 +2,7 @@ from datetime import datetime
 from types import SimpleNamespace
 
 from tidalist.core.identifiers import ISRC
-from tidalist.tidal.catalog import track_from_tidal
+from tidalist.tidal.platform import track_from_tidal
 
 
 def _artist(name):

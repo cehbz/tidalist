@@ -1,1 +1,1 @@
-"""Tidal adapter: implements the Catalog port over tidalapi."""
+"""Tidal adapter: implements the Platform port over tidalapi."""

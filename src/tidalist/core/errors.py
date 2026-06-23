@@ -5,8 +5,8 @@ class TidalistError(Exception):
     """Base for all tidalist domain errors."""
 
 
-class CatalogError(TidalistError):
-    """A catalog (streaming service) operation failed or is impossible."""
+class PlatformError(TidalistError):
+    """A platform (streaming service) operation failed or is impossible."""
 
 
 class MetadataError(TidalistError):
@@ -14,4 +14,4 @@ class MetadataError(TidalistError):
 
 
 class ResolutionError(TidalistError):
-    """A candidate could not be resolved to a catalog track."""
+    """A candidate could not be resolved to a platform track."""

@@ -10,9 +10,9 @@ def _realizer_or_skip():
     if not cfg.session_file.exists():
         pytest.skip("no Tidal session cached")
     from tidalist.tidal.session import authenticate
-    from tidalist.tidal.catalog import TidalCatalog
+    from tidalist.tidal.platform import TidalPlatform
     from tidalist.realize.tidal import TidalRealizer
-    return TidalRealizer(TidalCatalog(authenticate(cfg.session_file)))
+    return TidalRealizer(TidalPlatform(authenticate(cfg.session_file)))
 
 
 @pytest.mark.integration

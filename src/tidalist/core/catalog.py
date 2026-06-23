@@ -1,4 +1,4 @@
-"""Catalog value objects: a playable Track and a platform album descriptor."""
+"""Platform value objects: a playable Track and a platform album descriptor."""
 
 from dataclasses import dataclass
 
@@ -27,8 +27,8 @@ class Track:
 
 
 @dataclass(frozen=True, slots=True)
-class CatalogAlbum:
-    """A platform album descriptor returned by Catalog.search_albums."""
+class PlatformAlbum:
+    """A platform album descriptor returned by Platform.search_albums."""
     id: TrackId
     title: str
     artists: tuple[str, ...]

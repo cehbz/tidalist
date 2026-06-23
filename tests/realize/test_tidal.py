@@ -1,11 +1,11 @@
 from tidalist.core.identifiers import ISRC, TrackId
 from tidalist.core.recording import Recording, Credit
-from tidalist.core.catalog import Track, CatalogAlbum
+from tidalist.core.catalog import Track, PlatformAlbum
 from tidalist.core.album import Album, TrackRef
 from tidalist.core.edition import EditionPreference, EditionPolicy
 from tidalist.core.realize import MatchQuality, PlatformItem
 from tidalist.realize.tidal import TidalRealizer
-from tests.fakes import FakeCatalog
+from tests.fakes import FakePlatform
 
 
 def _rec(title="Glad", artist="Traffic", isrc=None, album=None, duration_s=None,
@@ -21,7 +21,7 @@ def _track(id, title="Glad", artists=("Traffic",), isrc=None, album=None, durati
 
 def test_resolve_by_isrc_takes_precedence_with_isrc_quality():
     target = _track("T-isrc", isrc=ISRC("GB1"))
-    cat = FakeCatalog([target, _track("T-decoy")])
+    cat = FakePlatform([target, _track("T-decoy")])
     item = TidalRealizer(cat).resolve(_rec(isrc=ISRC("GB1")))
     assert item.ref == "T-isrc" and item.quality is MatchQuality.ISRC
 
@@ -29,30 +29,30 @@ def test_resolve_by_isrc_takes_precedence_with_isrc_quality():
 def test_resolve_falls_back_to_closest_search_hit():
     right = _track("T-right", title="Glad", artists=("Traffic",))
     looser = _track("T-loose", title="Glad Rag Doll", artists=("Traffic",))
-    cat = FakeCatalog([looser, right])
+    cat = FakePlatform([looser, right])
     item = TidalRealizer(cat).resolve(_rec())
     assert item.ref == "T-right" and item.quality is MatchQuality.STRONG
 
 
 def test_resolve_returns_none_when_search_finds_nothing():
-    assert TidalRealizer(FakeCatalog([])).resolve(_rec()) is None
+    assert TidalRealizer(FakePlatform([])).resolve(_rec()) is None
 
 
 def test_resolve_prefers_closer_duration_among_equal_hits():
     a = _track("T-a", title="Glad", artists=("Traffic",), duration_s=200)
     b = _track("T-b", title="Glad", artists=("Traffic",), duration_s=386)
-    cat = FakeCatalog([a, b])
+    cat = FakePlatform([a, b])
     assert TidalRealizer(cat).resolve(_rec(duration_s=386)).ref == "T-b"
 
 
 def test_resolve_marks_a_title_mismatch_weak():
     only = _track("T-x", title="Glad Rag Doll", artists=("Traffic",))
-    item = TidalRealizer(FakeCatalog([only])).resolve(_rec())
+    item = TidalRealizer(FakePlatform([only])).resolve(_rec())
     assert item.ref == "T-x" and item.quality is MatchQuality.WEAK
 
 
 def test_emit_creates_a_playlist_and_adds_the_item_refs():
-    cat = FakeCatalog([])
+    cat = FakePlatform([])
     items = [PlatformItem(ref="T1", title="Glad", artists=("Traffic",)),
              PlatformItem(ref="T2", title="Dear Mr Fantasy", artists=("Traffic",))]
     ref = TidalRealizer(cat).emit("Winwood", items)
@@ -62,7 +62,7 @@ def test_emit_creates_a_playlist_and_adds_the_item_refs():
 # --- resolve_album tests ---
 
 def _album(id="A1", title="John Barleycorn Must Die", artists=("Traffic",), year=1970):
-    return CatalogAlbum(id=TrackId(id), title=title, artists=artists, year=year)
+    return PlatformAlbum(id=TrackId(id), title=title, artists=artists, year=year)
 
 
 def _album_track(id, title, artists=("Traffic",)):
@@ -76,7 +76,7 @@ def _domain_album(artist="Traffic", title="John Barleycorn Must Die"):
 def test_resolve_album_drops_wrong_artist():
     wrong_artist = _album(id="A-wrong", title="John Barleycorn Must Die",
                           artists=("Some Other Band",))
-    cat = FakeCatalog(
+    cat = FakePlatform(
         [],
         albums=[wrong_artist],
         album_track_map={"A-wrong": [_album_track("T1", "Glad")]},
@@ -95,7 +95,7 @@ def test_resolve_album_picks_original_over_deluxe():
         _album_track("T1", "Glad"),
         _album_track("T2", "Freedom Rider"),
     ]
-    cat = FakeCatalog(
+    cat = FakePlatform(
         [],
         albums=[deluxe, original],
         album_track_map={"A-orig": tracks, "A-deluxe": tracks[:1]},
@@ -114,7 +114,7 @@ def test_resolve_album_returns_tracks_in_order():
         _album_track("T2", "Freedom Rider"),
         _album_track("T3", "Empty Pages"),
     ]
-    cat = FakeCatalog(
+    cat = FakePlatform(
         [],
         albums=[album],
         album_track_map={"A1": ordered_tracks},
@@ -124,7 +124,7 @@ def test_resolve_album_returns_tracks_in_order():
 
 
 def test_resolve_album_returns_empty_when_nothing_matches():
-    cat = FakeCatalog([], albums=[], album_track_map={})
+    cat = FakePlatform([], albums=[], album_track_map={})
     items, compromise = TidalRealizer(cat).resolve_album(
         _domain_album(), EditionPolicy.default()
     )
@@ -166,7 +166,7 @@ def test_resolve_album_prefers_edition_nearest_golden_tracklist():
     tracks_10 = [_album_track(f"T{i}", f"Track {i}") for i in range(1, 11)]
     tracks_22 = [_album_track(f"E{i}", f"Track {i}") for i in range(1, 23)]
 
-    cat = FakeCatalog(
+    cat = FakePlatform(
         [],
         albums=[anchor],
         album_track_map={
@@ -193,7 +193,7 @@ def test_resolve_album_multi_query_finds_via_the_stripped_artist():
     # if the verbatim artist were "The Traffic". We simulate: only albums matching
     # "traffic john barleycorn" — "the traffic" stripped of "the " becomes "traffic".
     the_traffic_album = Album(artist="The Traffic", title="John Barleycorn Must Die")
-    cat = FakeCatalog(
+    cat = FakePlatform(
         [],
         albums=[anchor],
         album_track_map={"A1": tracks},
@@ -210,7 +210,7 @@ def test_resolve_album_title_only_query_finds_anchor_when_artist_queries_fail():
     """
     anchor = _album(id="A1", title="John Barleycorn Must Die",
                     artists=("Traffic",), year=1970)
-    cat = FakeCatalog([], albums=[anchor],
+    cat = FakePlatform([], albums=[anchor],
                       album_track_map={"A1": [_album_track("T1", "Glad")]})
     album = Album(artist="unknown traffic", title="John Barleycorn Must Die")
     items, _ = TidalRealizer(cat).resolve_album(album, EditionPolicy.default())
@@ -224,7 +224,7 @@ def test_resolve_album_editions_empty_falls_back_to_survivors():
     original = _album(id="A-orig", title="John Barleycorn Must Die", year=1970)
     tracks = [_album_track("T1", "Glad")]
     # album_editions_map is empty → falls back to survivors
-    cat = FakeCatalog(
+    cat = FakePlatform(
         [],
         albums=[original],
         album_track_map={"A-orig": tracks},

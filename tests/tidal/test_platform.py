@@ -1,8 +1,8 @@
 from datetime import datetime
 from types import SimpleNamespace
 
-from tidalist.tidal.catalog import TidalCatalog
-from tidalist.core.catalog import CatalogAlbum
+from tidalist.tidal.platform import TidalPlatform
+from tidalist.core.catalog import PlatformAlbum
 
 
 def _track(id, title="t", artist="a"):
@@ -103,41 +103,41 @@ class _FakeSession:
 
 def test_search_tracks_maps_and_limits():
     session = _FakeSession(tracks=[_track(1, "Glad"), _track(2, "Empty Pages")])
-    out = TidalCatalog(session).search_tracks("Traffic", limit=1)
+    out = TidalPlatform(session).search_tracks("Traffic", limit=1)
     assert [t.title for t in out] == ["Glad"]
     assert session.searched == [("Traffic", 1)]
 
 
 def test_track_by_isrc_returns_first_hit_mapped():
     session = _FakeSession(isrc_hits=[_track(9, "Glad")])
-    t = TidalCatalog(session).track_by_isrc("GBABC1234567")
+    t = TidalPlatform(session).track_by_isrc("GBABC1234567")
     assert t.id == "9" and t.title == "Glad"
 
 
 def test_track_by_isrc_none_when_no_hit():
-    assert TidalCatalog(_FakeSession()).track_by_isrc("ZZ") is None
+    assert TidalPlatform(_FakeSession()).track_by_isrc("ZZ") is None
 
 
 def test_create_playlist_returns_id():
     session = _FakeSession()
-    pid = TidalCatalog(session).create_playlist("Winwood", "desc")
+    pid = TidalPlatform(session).create_playlist("Winwood", "desc")
     assert pid == "PL1"
     assert session.user.created == [("Winwood", "desc")]
 
 
 def test_add_tracks_passes_string_ids():
     session = _FakeSession()
-    TidalCatalog(session).add_tracks("PL1", ["1", "2"])
+    TidalPlatform(session).add_tracks("PL1", ["1", "2"])
     assert session.pl.added == [["1", "2"]]
 
 
 def test_search_albums_maps_to_catalog_album():
     ta = _tidal_album(42, name="John Barleycorn Must Die", artist="Traffic", year=1970, num_tracks=6)
     session = _FakeSession(albums=[ta])
-    results = TidalCatalog(session).search_albums("Traffic John Barleycorn Must Die", limit=5)
+    results = TidalPlatform(session).search_albums("Traffic John Barleycorn Must Die", limit=5)
     assert len(results) == 1
     a = results[0]
-    assert isinstance(a, CatalogAlbum)
+    assert isinstance(a, PlatformAlbum)
     assert a.id == "42"
     assert a.title == "John Barleycorn Must Die"
     assert a.artists == ("Traffic",)
@@ -149,7 +149,7 @@ def test_search_albums_maps_to_catalog_album():
 def test_search_albums_limits_results():
     albums = [_tidal_album(i) for i in range(5)]
     session = _FakeSession(albums=albums)
-    results = TidalCatalog(session).search_albums("Traffic", limit=2)
+    results = TidalPlatform(session).search_albums("Traffic", limit=2)
     assert len(results) == 2
 
 
@@ -157,14 +157,14 @@ def test_album_tracks_returns_mapped_tracks():
     t1 = _track(1, "Glad")
     t2 = _track(2, "Freedom Rider")
     session = _FakeSession(album_tracks_map={"99": [t1, t2]})
-    tracks = TidalCatalog(session).album_tracks("99")
+    tracks = TidalPlatform(session).album_tracks("99")
     assert [t.title for t in tracks] == ["Glad", "Freedom Rider"]
     assert [t.id for t in tracks] == ["1", "2"]
 
 
 def test_album_tracks_returns_empty_for_unknown_id():
     session = _FakeSession()
-    assert TidalCatalog(session).album_tracks("nonexistent") == []
+    assert TidalPlatform(session).album_tracks("nonexistent") == []
 
 
 # --- album_editions ---
@@ -190,7 +190,7 @@ def test_album_editions_returns_sibling_editions_by_title():
     discography = _make_discography()
     anchor = _tidal_album_full(101, "Mr. Fantasy", discography=discography)
     session = _FakeSession(album_obj_map={"101": anchor})
-    editions = TidalCatalog(session).album_editions("101")
+    editions = TidalPlatform(session).album_editions("101")
     titles = [e.title for e in editions]
     assert "Mr. Fantasy" in titles
     assert "Mr. Fantasy (Deluxe Edition)" in titles
@@ -201,7 +201,7 @@ def test_album_editions_maps_num_tracks_correctly():
     discography = _make_discography()
     anchor = _tidal_album_full(101, "Mr. Fantasy", discography=discography)
     session = _FakeSession(album_obj_map={"101": anchor})
-    editions = TidalCatalog(session).album_editions("101")
+    editions = TidalPlatform(session).album_editions("101")
     by_id = {e.id: e for e in editions}
     assert by_id["101"].num_tracks == 10
     assert by_id["102"].num_tracks == 22
@@ -212,4 +212,4 @@ def test_album_editions_returns_empty_list_on_api_error():
         def album(self, album_id):
             raise RuntimeError("API error")
 
-    assert TidalCatalog(_BrokenSession()).album_editions("999") == []
+    assert TidalPlatform(_BrokenSession()).album_editions("999") == []

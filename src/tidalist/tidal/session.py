@@ -4,7 +4,7 @@ from pathlib import Path
 
 import tidalapi
 
-from ..core.errors import CatalogError
+from ..core.errors import PlatformError
 
 
 def authenticate(session_file: Path, *, session_factory=tidalapi.Session) -> tidalapi.Session:
@@ -13,7 +13,7 @@ def authenticate(session_file: Path, *, session_factory=tidalapi.Session) -> tid
         return session
     session.login_oauth_simple()  # interactive: prints a link.tidal.com URL
     if not session.check_login():
-        raise CatalogError("Tidal OAuth login failed")
+        raise PlatformError("Tidal OAuth login failed")
     session.save_session_to_file(session_file)
     return session
 

@@ -95,9 +95,9 @@ def build_metadata(config: AppConfig):
 
 def build_realizer(config: AppConfig):
     from .tidal.session import authenticate
-    from .tidal.catalog import TidalCatalog
+    from .tidal.platform import TidalPlatform
     from .realize.tidal import TidalRealizer
-    return TidalRealizer(TidalCatalog(authenticate(config.session_file)))
+    return TidalRealizer(TidalPlatform(authenticate(config.session_file)))
 
 
 # --- dispatch ----------------------------------------------------------------

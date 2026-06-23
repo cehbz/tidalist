@@ -1,4 +1,4 @@
-"""In-memory implementations of the Catalog and MetadataProvider ports for tests.
+"""In-memory implementations of the Platform and MetadataProvider ports for tests.
 
 These are real (deterministic) implementations, not mocks — tests specify behavior
 against them, not against call expectations.
@@ -6,16 +6,16 @@ against them, not against call expectations.
 
 from tidalist.core.album import Album
 from tidalist.core.identifiers import PlaylistId, TrackId
-from tidalist.core.catalog import Track, CatalogAlbum
+from tidalist.core.catalog import Track, PlatformAlbum
 from tidalist.core.recording import Candidate, Recording
 
 
-class FakeCatalog:
+class FakePlatform:
     def __init__(self, tracks, albums=(), album_track_map=None, album_editions_map=None):
         self._tracks = list(tracks)
         self._albums = list(albums)
         self._album_track_map: dict[str, list[Track]] = dict(album_track_map or {})
-        self._album_editions_map: dict[str, list[CatalogAlbum]] = dict(album_editions_map or {})
+        self._album_editions_map: dict[str, list[PlatformAlbum]] = dict(album_editions_map or {})
         self.playlists: dict[str, list] = {}
         self._n = 0
 
@@ -41,10 +41,10 @@ class FakeCatalog:
         self.playlists[playlist].extend(tracks)
 
     @staticmethod
-    def _album_haystack(a: CatalogAlbum) -> str:
+    def _album_haystack(a: PlatformAlbum) -> str:
         return f"{a.title} {' '.join(a.artists)}".casefold()
 
-    def search_albums(self, query: str, limit: int = 25) -> list[CatalogAlbum]:
+    def search_albums(self, query: str, limit: int = 25) -> list[PlatformAlbum]:
         words = query.casefold().split()
         return [a for a in self._albums
                 if all(w in self._album_haystack(a) for w in words)][:limit]
@@ -52,7 +52,7 @@ class FakeCatalog:
     def album_tracks(self, album_id: TrackId) -> list[Track]:
         return list(self._album_track_map.get(str(album_id), []))
 
-    def album_editions(self, album_id: TrackId) -> list[CatalogAlbum]:
+    def album_editions(self, album_id: TrackId) -> list[PlatformAlbum]:
         return list(self._album_editions_map.get(str(album_id), []))
 
 

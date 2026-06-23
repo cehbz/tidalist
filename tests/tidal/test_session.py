@@ -1,7 +1,7 @@
 import pytest
 
 from tidalist.tidal.session import authenticate
-from tidalist.core.errors import CatalogError
+from tidalist.core.errors import PlatformError
 
 
 class _FakeSession:
@@ -53,5 +53,5 @@ def test_oauth_when_cached_session_invalid(tmp_path):
 
 def test_raises_when_login_fails(tmp_path):
     session = _FakeSession(loads=False, login_succeeds=False)
-    with pytest.raises(CatalogError):
+    with pytest.raises(PlatformError):
         authenticate(tmp_path / "missing.json", session_factory=lambda: session)

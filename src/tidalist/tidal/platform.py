@@ -1,15 +1,15 @@
-"""Map tidalapi objects to core value objects, and serve them through the Catalog port."""
+"""Map tidalapi objects to core value objects, and serve them through the Platform port."""
 
 from datetime import datetime
 
 import tidalapi
 
 from ..core.identifiers import ISRC, TrackId, PlaylistId
-from ..core.catalog import Track, CatalogAlbum
+from ..core.catalog import Track, PlatformAlbum
 
 
-class TidalCatalog:
-    """Catalog port backed by an authenticated tidalapi Session."""
+class TidalPlatform:
+    """Platform port backed by an authenticated tidalapi Session."""
 
     def __init__(self, session: tidalapi.Session):
         self._session = session
@@ -29,14 +29,14 @@ class TidalCatalog:
     def add_tracks(self, playlist: PlaylistId, tracks: list[TrackId]) -> None:
         self._session.playlist(playlist).add([str(t) for t in tracks])
 
-    def search_albums(self, query: str, limit: int = 25) -> list[CatalogAlbum]:
+    def search_albums(self, query: str, limit: int = 25) -> list[PlatformAlbum]:
         results = self._session.search(query, models=[tidalapi.album.Album], limit=limit)
         return [_album_from_tidal(a) for a in results["albums"][:limit]]
 
     def album_tracks(self, album_id: TrackId) -> list[Track]:
         return [track_from_tidal(t) for t in self._session.album(album_id).tracks()]
 
-    def album_editions(self, album_id: TrackId) -> list[CatalogAlbum]:
+    def album_editions(self, album_id: TrackId) -> list[PlatformAlbum]:
         try:
             anchor = self._session.album(album_id)
             discography = anchor.artist.get_albums()
@@ -65,9 +65,9 @@ def _artist_names(t) -> list[str]:
     return [artist.name] if artist else ["Unknown"]
 
 
-def _album_from_tidal(a) -> CatalogAlbum:
+def _album_from_tidal(a) -> PlatformAlbum:
     artists = tuple(ar.name for ar in getattr(a, "artists", []))
-    return CatalogAlbum(
+    return PlatformAlbum(
         id=TrackId(str(a.id)),
         title=a.name,
         artists=artists,

@@ -26,7 +26,7 @@ def test_mr_fantasy_resolves_to_the_original_not_the_deluxe_live():
     import musicbrainzngs
     from tidalist.metadata.musicbrainz import MusicBrainzMetadata
     from tidalist.tidal.session import authenticate
-    from tidalist.tidal.catalog import TidalCatalog
+    from tidalist.tidal.platform import TidalPlatform
     from tidalist.realize.tidal import TidalRealizer
 
     # Curate: the golden Album gains MB's canonical tracklist (the standard edition,
@@ -40,7 +40,7 @@ def test_mr_fantasy_resolves_to_the_original_not_the_deluxe_live():
 
     # Realize: distance-from-golden must pick the original over the 22-track deluxe
     # that Tidal album search surfaces first.
-    realizer = TidalRealizer(TidalCatalog(authenticate(cfg.session_file)))
+    realizer = TidalRealizer(TidalPlatform(authenticate(cfg.session_file)))
     items, _ = realizer.resolve_album(album, EditionPolicy.default())
     assert items, "expected the album to resolve"
     assert len(items) <= 14, \

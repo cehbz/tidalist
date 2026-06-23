@@ -9,7 +9,7 @@ from tidalist.core.brief import Brief
 from tidalist.core.golden import GoldenEntry, GoldenPlaylist
 from tidalist.core.realize import realize, publish, Realization, PlatformItem, MatchQuality, EditionOption, choose_edition, edition_distance
 from tidalist.core.edition import EditionPreference, EditionPolicy
-from tidalist.core.errors import CatalogError
+from tidalist.core.errors import PlatformError
 
 
 class _FakeRealizer:
@@ -85,7 +85,7 @@ def test_publish_emits_only_resolved_items_and_returns_the_reference():
 def test_publish_raises_when_nothing_resolved():
     realizer = _FakeRealizer({})
     r = realize(_golden(_entry("Obscure")), realizer)
-    with pytest.raises(CatalogError):
+    with pytest.raises(PlatformError):
         publish(r, realizer)
 
 

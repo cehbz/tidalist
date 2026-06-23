@@ -1,11 +1,11 @@
-"""TidalRealizer: the Realizer port for Tidal, built on the Catalog port.
+"""TidalRealizer: the Realizer port for Tidal, built on the Platform port.
 
-It composes a Catalog (TidalCatalog in production), so all tidalapi specifics stay in
-the Catalog adapter. resolve() matches a recording to a track ISRC-first, then by
+It composes a Platform (TidalPlatform in production), so all tidalapi specifics stay in
+the Platform adapter. resolve() matches a recording to a track ISRC-first, then by
 closeness; emit() creates a playlist and adds the resolved tracks.
 """
 
-from ..core.ports import Catalog
+from ..core.ports import Platform
 from ..core.identifiers import TrackId
 from ..core.recording import Recording
 from ..core.catalog import Track
@@ -15,15 +15,15 @@ from ..core.album import Album
 
 
 class TidalRealizer:
-    def __init__(self, catalog: Catalog):
-        self._catalog = catalog
+    def __init__(self, platform: Platform):
+        self._platform = platform
 
     def resolve(self, recording: Recording) -> PlatformItem | None:
         if recording.isrc is not None:
-            track = self._catalog.track_by_isrc(recording.isrc)
+            track = self._platform.track_by_isrc(recording.isrc)
             if track is not None:
                 return _item(track, MatchQuality.ISRC)
-        hits = self._catalog.search_tracks(_query(recording))
+        hits = self._platform.search_tracks(_query(recording))
         if not hits:
             return None
         best = min(hits, key=lambda t: _closeness(recording, t))
@@ -40,14 +40,14 @@ class TidalRealizer:
         anchor = survivors[0]
         # The discography gives the full edition set; fall back to the search
         # survivors when it's empty (so `editions` is always non-empty here).
-        editions = self._catalog.album_editions(anchor.id) or survivors
+        editions = self._platform.album_editions(anchor.id) or survivors
         if album.tracklist:
             options = [
                 EditionOption(
                     ref=str(e.id),
                     title=e.title,
                     year=e.year,
-                    tracks=tuple(self._catalog.album_tracks(e.id)),
+                    tracks=tuple(self._platform.album_tracks(e.id)),
                 )
                 for e in editions
             ]
@@ -59,13 +59,13 @@ class TidalRealizer:
         chosen, compromise = choose_edition(options, preference, album)
         if chosen is None:
             return [], None
-        tracks = chosen.tracks or tuple(self._catalog.album_tracks(TrackId(chosen.ref)))
+        tracks = chosen.tracks or tuple(self._platform.album_tracks(TrackId(chosen.ref)))
         items = [_item(t, MatchQuality.STRONG) for t in tracks]
         return items, compromise
 
     def _search_survivors(self, album: Album):
         for query in _anchor_queries(album):
-            hits = self._catalog.search_albums(query)
+            hits = self._platform.search_albums(query)
             survivors = [
                 c for c in hits
                 if _artist_match_album(album.artist, c.artists)
@@ -76,8 +76,8 @@ class TidalRealizer:
         return []
 
     def emit(self, name: str, items: list[PlatformItem]) -> str:
-        playlist = self._catalog.create_playlist(name)
-        self._catalog.add_tracks(playlist, [TrackId(i.ref) for i in items])
+        playlist = self._platform.create_playlist(name)
+        self._platform.add_tracks(playlist, [TrackId(i.ref) for i in items])
         return str(playlist)
 
 

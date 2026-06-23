@@ -16,7 +16,7 @@ from .edition import EditionPreference, EditionPolicy
 from .identifiers import ISRC
 from .recording import Recording
 from .golden import GoldenEntry, GoldenPlaylist
-from .errors import CatalogError
+from .errors import PlatformError
 
 
 # ---------------------------------------------------------------------------
@@ -223,5 +223,5 @@ def publish(realization: Realization, realizer: Realizer) -> str:
     """Emit the resolved items to the platform; return the platform playlist reference."""
     items = [item for e in realization.resolved() for item in e.items]
     if not items:
-        raise CatalogError(f"nothing resolved to publish for '{realization.name}'")
+        raise PlatformError(f"nothing resolved to publish for '{realization.name}'")
     return realizer.emit(realization.name, items)
