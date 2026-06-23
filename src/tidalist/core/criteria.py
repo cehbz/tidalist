@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
-from .album import Album
+from .album import Album, ReleaseTrait
 from .recording import Recording
 
 
@@ -56,7 +56,7 @@ class NotCompilation:
     """Album must not be a compilation. No-op on recordings."""
 
     def violation(self, item: "Album | Recording") -> str | None:
-        if isinstance(item, Album) and "Compilation" in item.secondary_types:
+        if isinstance(item, Album) and ReleaseTrait.COMPILATION in item.traits:
             return "compilation"
         return None
 
@@ -66,6 +66,6 @@ class NotLive:
     """Album must not be a live album. No-op on recordings."""
 
     def violation(self, item: "Album | Recording") -> str | None:
-        if isinstance(item, Album) and "Live" in item.secondary_types:
+        if isinstance(item, Album) and ReleaseTrait.LIVE in item.traits:
             return "live album"
         return None

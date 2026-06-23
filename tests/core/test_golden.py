@@ -173,13 +173,14 @@ def test_track_candidate_still_uses_recordings_path():
 # --- Phase 4 Task 1: Curator judges albums via brief ---
 
 def _comp_album(title="Greatest Hits", artist="Traffic"):
+    from tidalist.core.album import ReleaseTrait
     return Album(artist=artist, title=title, mbid="mb-comp", first_released=1975,
-                 secondary_types=("Compilation",))
+                 traits=frozenset({ReleaseTrait.COMPILATION}))
 
 
 def _studio_album(title="John Barleycorn Must Die", artist="Traffic"):
     return Album(artist=artist, title=title, mbid="mb-studio", first_released=1970,
-                 secondary_types=())
+                 traits=frozenset())
 
 
 def test_album_candidate_rejected_when_compilation_under_not_compilation_brief():

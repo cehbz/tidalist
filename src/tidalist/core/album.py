@@ -1,8 +1,15 @@
 """Album: release-group identity value object."""
 
 from dataclasses import dataclass
+from enum import StrEnum
 
 from .identifiers import ISRC, MBID
+
+
+class ReleaseTrait(StrEnum):
+    """A release-group classification a curation criterion can filter on (extend when a new filter is added)."""
+    COMPILATION = "compilation"
+    LIVE = "live"
 
 
 @dataclass(frozen=True, slots=True)
@@ -17,11 +24,10 @@ class TrackRef:
 
 @dataclass(frozen=True, slots=True)
 class Album:
-    """Release-group identity with edition type fields."""
+    """Release-group identity + release traits + canonical tracklist."""
     artist: str
     title: str
     mbid: MBID | None = None
     first_released: int | None = None
-    primary_type: str | None = None
-    secondary_types: tuple[str, ...] = ()
+    traits: frozenset[ReleaseTrait] = frozenset()
     tracklist: tuple[TrackRef, ...] = ()

@@ -9,9 +9,20 @@ Callers must musicbrainzngs.set_useragent(...) before live use.
 
 import musicbrainzngs
 
-from ..core.album import Album, TrackRef
+from ..core.album import Album, TrackRef, ReleaseTrait
 from ..core.identifiers import ISRC, MBID
 from ..core.recording import Candidate, Credit, Recording, Performance
+
+
+def _traits_from_mb(secondary_list) -> frozenset[ReleaseTrait]:
+    """Map MusicBrainz secondary-type-list to ReleaseTrait values, dropping unmapped entries."""
+    _map = {"compilation": ReleaseTrait.COMPILATION, "live": ReleaseTrait.LIVE}
+    result = set()
+    for s in (secondary_list or []):
+        trait = _map.get(s.lower())
+        if trait is not None:
+            result.add(trait)
+    return frozenset(result)
 
 
 def album_from_release_group(rg: dict, tracklist: tuple[TrackRef, ...] = ()) -> Album:
@@ -24,8 +35,7 @@ def album_from_release_group(rg: dict, tracklist: tuple[TrackRef, ...] = ()) -> 
         title=rg["title"],
         mbid=MBID(rg["id"]) if rg.get("id") else None,
         first_released=first_released,
-        primary_type=rg.get("primary-type"),
-        secondary_types=tuple(rg.get("secondary-type-list") or ()),
+        traits=_traits_from_mb(rg.get("secondary-type-list")),
         tracklist=tracklist,
     )
 

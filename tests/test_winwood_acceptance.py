@@ -17,7 +17,7 @@ from tidalist.nl.intent import parse_intent
 from tidalist.core.golden import Curator
 from tidalist.core.realize import realize, publish, PlatformItem, MatchQuality
 from tidalist.core.recording import Recording, Credit, Performance, Kind
-from tidalist.core.album import Album
+from tidalist.core.album import Album, ReleaseTrait
 
 from tests.fakes import FakeMetadataProvider, FakeRealizer
 
@@ -46,8 +46,8 @@ def _platform_item(ref: str, title: str) -> PlatformItem:
                         quality=MatchQuality.STRONG)
 
 
-def _album(artist: str, title: str, secondary_types: tuple = ()) -> Album:
-    return Album(artist=artist, title=title, secondary_types=secondary_types)
+def _album(artist: str, title: str, traits: frozenset = frozenset()) -> Album:
+    return Album(artist=artist, title=title, traits=traits)
 
 
 # ---------------------------------------------------------------------------
@@ -88,7 +88,7 @@ def _build_metadata_provider() -> FakeMetadataProvider:
         "Their First LP": _album("The Spencer Davis Group", "Their First LP"),
         # A genuine compilation — brief NotCompilation must reject it
         "The Finer Things": _album("Steve Winwood", "The Finer Things",
-                                   secondary_types=("Compilation",)),
+                                   traits=frozenset({ReleaseTrait.COMPILATION})),
     }
     recordings = {
         "Gimme Some Lovin'": _studio_recording("Gimme Some Lovin'"),

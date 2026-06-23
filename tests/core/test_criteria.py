@@ -1,5 +1,5 @@
 from tidalist.core.recording import Performance, Credit, Recording
-from tidalist.core.album import Album
+from tidalist.core.album import Album, ReleaseTrait
 from tidalist.core.criteria import Verdict, PerformedBy, Studio, NotCompilation, NotLive
 
 
@@ -8,9 +8,9 @@ def _rec(performance=Performance.STUDIO, artist="Steve Winwood"):
                      credits=(Credit(artist, "performer"),), first_released=1970)
 
 
-def _album(secondary_types=()):
+def _album(traits=frozenset()):
     return Album(artist="Traffic", title="John Barleycorn Must Die",
-                 secondary_types=secondary_types)
+                 traits=traits)
 
 
 def test_verdict_ok_has_no_violations():
@@ -57,7 +57,7 @@ def test_not_compilation_passes_studio_album():
 
 
 def test_not_compilation_flags_compilation_album():
-    reason = NotCompilation().violation(_album(secondary_types=("Compilation",)))
+    reason = NotCompilation().violation(_album(traits=frozenset({ReleaseTrait.COMPILATION})))
     assert reason == "compilation"
 
 
@@ -72,7 +72,7 @@ def test_not_live_passes_studio_album():
 
 
 def test_not_live_flags_live_album():
-    reason = NotLive().violation(_album(secondary_types=("Live",)))
+    reason = NotLive().violation(_album(traits=frozenset({ReleaseTrait.LIVE})))
     assert reason == "live album"
 
 

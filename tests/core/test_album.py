@@ -1,7 +1,7 @@
 import pytest
 
 from tidalist.core.identifiers import ISRC, MBID
-from tidalist.core.album import Album, TrackRef
+from tidalist.core.album import Album, TrackRef, ReleaseTrait
 
 
 def test_album_carries_identity_fields():
@@ -16,26 +16,23 @@ def test_album_optional_fields_default_none():
     assert a.mbid is None and a.first_released is None
 
 
-# --- Phase 4 Task 1: edition type fields ---
+# --- Phase 4 Task 1 (updated): release traits ---
 
-def test_album_carries_primary_type():
-    a = Album(artist="Traffic", title="John Barleycorn Must Die", primary_type="Album")
-    assert a.primary_type == "Album"
+def test_album_carries_traits():
+    a = Album(artist="Traffic", title="Live Traffic",
+              traits=frozenset({ReleaseTrait.LIVE}))
+    assert ReleaseTrait.LIVE in a.traits
 
 
-def test_album_primary_type_defaults_none():
+def test_album_traits_defaults_empty_frozenset():
     a = Album(artist="Traffic", title="John Barleycorn Must Die")
-    assert a.primary_type is None
+    assert a.traits == frozenset()
 
 
-def test_album_carries_secondary_types():
-    a = Album(artist="Traffic", title="Live Traffic", secondary_types=("Live",))
-    assert a.secondary_types == ("Live",)
-
-
-def test_album_secondary_types_defaults_empty_tuple():
-    a = Album(artist="Traffic", title="John Barleycorn Must Die")
-    assert a.secondary_types == ()
+def test_album_can_carry_multiple_traits():
+    a = Album(artist="Various", title="Live Comp",
+              traits=frozenset({ReleaseTrait.LIVE, ReleaseTrait.COMPILATION}))
+    assert ReleaseTrait.LIVE in a.traits and ReleaseTrait.COMPILATION in a.traits
 
 
 # --- Phase 2 (edition-distance): TrackRef and Album.tracklist ---

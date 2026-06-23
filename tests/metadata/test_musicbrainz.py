@@ -1,4 +1,4 @@
-from tidalist.core.album import Album, TrackRef
+from tidalist.core.album import Album, TrackRef, ReleaseTrait
 from tidalist.core.identifiers import ISRC, MBID
 from tidalist.core.recording import Candidate, Kind, Performance
 from tidalist.metadata.musicbrainz import (recording_from_musicbrainz, MusicBrainzMetadata,
@@ -268,31 +268,31 @@ def test_albums_for_unfiltered_when_artist_unresolved():
     assert len(albums) == 1
 
 
-# --- Phase 4 Task 1: album_from_release_group maps type fields ---
+# --- Phase 4 Task 1 (updated): album_from_release_group maps traits ---
 
-def test_album_from_rg_maps_primary_type():
-    assert album_from_release_group(_rg()).primary_type == "Album"
-
-
-def test_album_from_rg_primary_type_none_when_absent():
-    rg = _rg()
-    del rg["primary-type"]
-    assert album_from_release_group(rg).primary_type is None
-
-
-def test_album_from_rg_maps_secondary_types_from_list():
+def test_album_from_rg_maps_compilation_secondary_type_to_trait():
     rg = {**_rg(), "secondary-type-list": ["Compilation"]}
-    assert album_from_release_group(rg).secondary_types == ("Compilation",)
+    assert ReleaseTrait.COMPILATION in album_from_release_group(rg).traits
 
 
-def test_album_from_rg_secondary_types_empty_when_absent():
+def test_album_from_rg_maps_live_secondary_type_to_trait():
+    rg = {**_rg(), "secondary-type-list": ["Live"]}
+    assert ReleaseTrait.LIVE in album_from_release_group(rg).traits
+
+
+def test_album_from_rg_traits_empty_when_secondary_types_absent():
     rg = _rg()
-    assert album_from_release_group(rg).secondary_types == ()
+    assert album_from_release_group(rg).traits == frozenset()
 
 
-def test_album_from_rg_secondary_types_empty_when_list_is_none():
+def test_album_from_rg_traits_empty_when_secondary_type_list_is_none():
     rg = {**_rg(), "secondary-type-list": None}
-    assert album_from_release_group(rg).secondary_types == ()
+    assert album_from_release_group(rg).traits == frozenset()
+
+
+def test_album_from_rg_unmapped_secondary_type_is_dropped():
+    rg = {**_rg(), "secondary-type-list": ["Spokenword"]}
+    assert album_from_release_group(rg).traits == frozenset()
 
 
 # --- Phase 6 Task 1: artist_mbid hint bypasses search_artists ---
