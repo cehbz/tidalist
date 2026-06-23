@@ -69,6 +69,7 @@ class PlatformCandidate:
     artists: tuple[str, ...] = ()
     isrc: ISRC | None = None
     year: int | None = None
+    duration_s: int | None = None
     tracks: tuple[Track, ...] = ()
     release_class: frozenset[ReleaseTrait] | None = None
     performance: Performance = Performance.UNKNOWN

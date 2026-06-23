@@ -69,6 +69,12 @@ def test_platform_candidate_defaults_are_observation_unknowns():
     assert c.release_class is None
     assert c.performance is Performance.UNKNOWN
     assert c.source_kind is None and c.audio_quality is None and c.popularity is None
+    assert c.duration_s is None
+
+
+def test_platform_candidate_carries_duration():
+    c = PlatformCandidate(ref="t1", title="Glad", duration_s=386)
+    assert c.duration_s == 386
 
 
 def test_identity_dominates_marker():
