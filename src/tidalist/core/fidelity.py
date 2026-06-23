@@ -55,6 +55,24 @@ class EditionOption:
     tracks: tuple[Track, ...] = ()
 
 
+@dataclass(frozen=True, slots=True)
+class PlatformCandidate:
+    """A platform item carrying best-effort observed fidelity values. Unknowns stay
+    None / UNKNOWN so the corresponding facet no-ops. `title`/`year`/`tracks` mirror
+    EditionOption so edition_distance reads a candidate structurally."""
+    ref: str
+    title: str
+    artists: tuple[str, ...] = ()
+    isrc: ISRC | None = None
+    year: int | None = None
+    tracks: tuple[Track, ...] = ()
+    release_class: frozenset[ReleaseTrait] | None = None
+    performance: Performance = Performance.UNKNOWN
+    source_kind: str | None = None
+    audio_quality: str | None = None
+    popularity: int | None = None
+
+
 def _track_matches(ref: TrackRef, t: Track) -> bool:
     """True if the golden TrackRef matches a platform Track by ISRC or normalised title."""
     if ref.isrc is not None and t.isrc is not None:
