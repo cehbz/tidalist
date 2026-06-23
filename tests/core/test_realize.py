@@ -25,7 +25,7 @@ class _FakeRealizer:
         self.emitted = []
 
     def resolve(self, recording):
-        return self._by_title.get(recording.title.casefold())
+        return self._by_title.get(recording.title.casefold()), ()
 
     def resolve_album(self, album, preference):
         key = album.title.casefold()

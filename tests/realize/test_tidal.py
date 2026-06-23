@@ -22,7 +22,7 @@ def _track(id, title="Glad", artists=("Traffic",), isrc=None, album=None, durati
 def test_resolve_by_isrc_takes_precedence_with_isrc_quality():
     target = _track("T-isrc", isrc=ISRC("GB1"))
     cat = FakePlatform([target, _track("T-decoy")])
-    item = TidalRealizer(cat).resolve(_rec(isrc=ISRC("GB1")))
+    item, _ = TidalRealizer(cat).resolve(_rec(isrc=ISRC("GB1")))
     assert item.ref == "T-isrc" and item.quality is MatchQuality.ISRC
 
 
@@ -30,25 +30,41 @@ def test_resolve_falls_back_to_closest_search_hit():
     right = _track("T-right", title="Glad", artists=("Traffic",))
     looser = _track("T-loose", title="Glad Rag Doll", artists=("Traffic",))
     cat = FakePlatform([looser, right])
-    item = TidalRealizer(cat).resolve(_rec())
+    item, _ = TidalRealizer(cat).resolve(_rec())
     assert item.ref == "T-right" and item.quality is MatchQuality.STRONG
 
 
 def test_resolve_returns_none_when_search_finds_nothing():
-    assert TidalRealizer(FakePlatform([])).resolve(_rec()) is None
+    item, comps = TidalRealizer(FakePlatform([])).resolve(_rec())
+    assert item is None and comps == ()
 
 
 def test_resolve_prefers_closer_duration_among_equal_hits():
     a = _track("T-a", title="Glad", artists=("Traffic",), duration_s=200)
     b = _track("T-b", title="Glad", artists=("Traffic",), duration_s=386)
     cat = FakePlatform([a, b])
-    assert TidalRealizer(cat).resolve(_rec(duration_s=386)).ref == "T-b"
+    item, _ = TidalRealizer(cat).resolve(_rec(duration_s=386))
+    assert item.ref == "T-b"
 
 
 def test_resolve_marks_a_title_mismatch_weak():
     only = _track("T-x", title="Glad Rag Doll", artists=("Traffic",))
-    item = TidalRealizer(FakePlatform([only])).resolve(_rec())
+    item, _ = TidalRealizer(FakePlatform([only])).resolve(_rec())
     assert item.ref == "T-x" and item.quality is MatchQuality.WEAK
+
+
+def test_resolve_substitutes_a_live_take_and_reports_the_compromise():
+    from tidalist.core.recording import Performance
+    rec = Recording(artist="Traffic", title="Dear Mr. Fantasy",
+                    performance=Performance.STUDIO,
+                    credits=(Credit("Traffic", "performer"),))
+    live = _track("T-live", title="Dear Mr. Fantasy (Live)", artists=("Traffic",))
+    cat = FakePlatform([live])
+    item, comps = TidalRealizer(cat).resolve(rec)
+    assert item.ref == "T-live"
+    assert len(comps) == 1
+    assert comps[0].facet == "performance"
+    assert comps[0].note == "studio take unavailable; used a live version"
 
 
 def test_emit_creates_a_playlist_and_adds_the_item_refs():

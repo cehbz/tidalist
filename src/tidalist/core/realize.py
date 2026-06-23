@@ -67,7 +67,7 @@ class Realization:
 
 @runtime_checkable
 class Realizer(Protocol):
-    def resolve(self, recording: Recording) -> PlatformItem | None: ...
+    def resolve(self, recording: Recording) -> tuple[PlatformItem | None, tuple[Compromise, ...]]: ...
     def resolve_album(self, album: Album,
                       preference: EditionPreference) -> tuple[list[PlatformItem], tuple[Compromise, ...]]: ...
     def emit(self, name: str, items: list[PlatformItem]) -> str: ...
@@ -84,9 +84,9 @@ def realize(
         if not e.verdict.admitted:
             continue
         if isinstance(e.item, Recording):
-            pi = realizer.resolve(e.item)
+            pi, comps = realizer.resolve(e.item)
             items = (pi,) if pi is not None else ()
-            realized.append(RealizedEntry(e, items=items, compromises=()))
+            realized.append(RealizedEntry(e, items=items, compromises=comps))
         elif isinstance(e.item, Album):
             effective_preference = e.edition if e.edition is not None else preference
             items_list, comps = realizer.resolve_album(e.item, effective_preference)

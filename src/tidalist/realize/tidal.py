@@ -7,10 +7,13 @@ closeness; emit() creates a playlist and adds the resolved tracks.
 
 from ..core.ports import Platform
 from ..core.identifiers import TrackId
-from ..core.recording import Recording
+from ..core.recording import Recording, Performance
 from ..core.catalog import Track
 from ..core.realize import PlatformItem, MatchQuality
-from ..core.fidelity import PlatformCandidate, IdentityFacet, EditionFacet, choose
+from ..core.fidelity import (
+    PlatformCandidate, IdentityFacet, EditionFacet, PerformanceFacet, choose,
+    recording_artist_match, Compromise,
+)
 from ..core.edition import EditionPreference
 from ..core.album import Album
 
@@ -19,16 +22,19 @@ class TidalRealizer:
     def __init__(self, platform: Platform):
         self._platform = platform
 
-    def resolve(self, recording: Recording) -> PlatformItem | None:
+    def resolve(self, recording: Recording) -> tuple[PlatformItem | None, tuple[Compromise, ...]]:
         if recording.isrc is not None:
             track = self._platform.track_by_isrc(recording.isrc)
             if track is not None:
-                return _item(track, MatchQuality.ISRC)
+                return _item(track, MatchQuality.ISRC), ()
         hits = self._platform.search_tracks(_query(recording))
-        if not hits:
-            return None
-        best = min(hits, key=lambda t: _closeness(recording, t))
-        return _item(best, _quality(recording, best))
+        candidates = [_track_candidate(t) for t in hits]
+        if not candidates:
+            return None, ()
+        chosen, comps = choose(recording, candidates, [IdentityFacet(), PerformanceFacet()])
+        if chosen is None:
+            return None, ()
+        return _item_from_candidate(chosen, _quality_for(recording, chosen)), comps
 
     def resolve_album(
         self,
@@ -105,27 +111,6 @@ def _norm(s: str | None) -> str:
     return (s or "").casefold().strip()
 
 
-def _closeness(recording: Recording, track: Track) -> tuple:
-    """Sort key, lower is closer: title, then artist, then album, then duration delta."""
-    title = 0 if _norm(recording.title) == _norm(track.title) else 1
-    artist = 0 if _artist_match(recording, track) else 1
-    album = 0 if _album_match(recording, track) else 1
-    dur = abs((recording.duration_s or 0) - (track.duration_s or 0))
-    return (title, artist, album, dur)
-
-
-def _artist_match(recording: Recording, track: Track) -> bool:
-    performers = {_norm(c.artist) for c in recording.credits if c.role == "performer"}
-    performers.add(_norm(recording.artist))
-    return any(p and any(p in _norm(a) or _norm(a) in p for a in track.artists)
-               for p in performers)
-
-
-def _album_match(recording: Recording, track: Track) -> bool:
-    return bool(recording.album and track.album
-                and _norm(recording.album) in _norm(track.album))
-
-
 def _artist_match_album(artist: str, catalog_artists: tuple[str, ...]) -> bool:
     a = artist.casefold()
     return any(a in ca.casefold() or ca.casefold() in a for ca in catalog_artists)
@@ -137,6 +122,28 @@ def _title_match_album(title: str, catalog_title: str) -> bool:
     return t in ct or ct in t
 
 
-def _quality(recording: Recording, track: Track) -> MatchQuality:
-    title, artist, _, _ = _closeness(recording, track)
-    return MatchQuality.STRONG if title == 0 and artist == 0 else MatchQuality.WEAK
+_LIVE_MARKERS = ("(live", "[live", " live at ", " - live", "live in ", "live from", "unplugged")
+
+
+def _observe_performance(title: str) -> Performance:
+    t = title.casefold()
+    return Performance.LIVE if any(m in t for m in _LIVE_MARKERS) else Performance.UNKNOWN
+
+
+def _track_candidate(track: Track) -> PlatformCandidate:
+    return PlatformCandidate(
+        ref=str(track.id), title=track.title, artists=track.artists,
+        isrc=track.isrc, duration_s=track.duration_s,
+        performance=_observe_performance(track.title),
+    )
+
+
+def _item_from_candidate(cand: PlatformCandidate, quality: MatchQuality) -> PlatformItem:
+    return PlatformItem(ref=cand.ref, title=cand.title, artists=cand.artists,
+                        isrc=cand.isrc, quality=quality)
+
+
+def _quality_for(recording: Recording, cand: PlatformCandidate) -> MatchQuality:
+    title_ok = _norm(recording.title) == _norm(cand.title)
+    artist_ok = recording_artist_match(recording, cand.artists)
+    return MatchQuality.STRONG if title_ok and artist_ok else MatchQuality.WEAK
