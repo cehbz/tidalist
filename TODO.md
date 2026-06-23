@@ -6,19 +6,25 @@ phase status live in `docs/superpowers/plans/2026-06-20-tidalist-architecture.md
 ## Open
 
 ### Uniform best-effort realize across all fidelity axes (the big next design)
-**Status (2026-06-23):** Slices 1–2 landed (branch `uniform-realize-slice-1`, then
-`uniform-realize-slice-2` stacked on it; not merged to main). Slice 1: the uniform
-`realize_distance` / `Facet` / `choose` / `PlatformCandidate` / typed-`Compromise` framework
-(`core/fidelity.py`) + `IdentityFacet` + `EditionFacet`, edition selection migrated onto it —
-behavior-preserving (Mr. Fantasy → 10-track; offline + live edition proof green). Slice 2:
-`PerformanceFacet` + a fuzzy-closeness `IdentityFacet` (ISRC as a positive exact-match signal,
-the old `W_IDENTITY` cliff removed); recording resolution is now facet-native via `choose`, and
-`resolve` reports a typed compromise instead of silently substituting a live take for a studio
-one (offline 314 green). **Outstanding:** a live no-silent-substitution confirmation is
-deferred (no stable Tidal fixture; deterministic behavior is proven offline). Remaining slices:
-slice 3 (track-level album fallback — Trout Mask Replica fixture; adds `ReleaseClassFacet`),
-slice 4 (quality-preference depth / `AudioFacet`, superseding `choose`'s `ref` tiebreak). Specs
-in `docs/superpowers/specs/`, plans in `docs/superpowers/plans/`.
+**Status (2026-06-23):** Slices 1–3 landed (stacked branches `uniform-realize-slice-1` →
+`-slice-2` → `-slice-3`; not merged to main). Slice 1: the uniform `realize_distance` /
+`Facet` / `choose` / `PlatformCandidate` / typed-`Compromise` framework (`core/fidelity.py`) +
+`IdentityFacet` + `EditionFacet`, edition selection migrated onto it — behavior-preserving
+(Mr. Fantasy → 10-track; offline + live edition proof green). Slice 2: `PerformanceFacet` + a
+fuzzy-closeness `IdentityFacet` (ISRC as a positive exact-match signal; graded token-set title
+distance + scale-invariant duration ratio); recording resolution is facet-native via `choose`
+and `resolve` reports a typed compromise instead of silently substituting a live take. Slice 3:
+**track-level album fallback** — when a release-group is absent on the platform, `resolve_album`
+assembles the canonical tracklist track-by-track from individual catalog tracks and reports an
+`album-source` compromise (counts + missing positions) instead of gapping. Proven live: Trout
+Mask Replica assembles 28/28 from compilations. Also fixed `TidalPlatform.track_by_isrc` to
+return `None` (not raise) for an ISRC absent from the catalog. Offline 323 green. **Outstanding:**
+a live no-silent-substitution confirmation (slice 2) is still deferred (no stable fixture).
+Remaining: slice 4 (quality-preference `AudioFacet`, superseding `choose`'s `ref` tiebreak;
+also the home for the deferred `ReleaseClassFacet` + per-track source-release attribution).
+Longer-term: a cheap/local-LLM judge for context-dependent title/identity matching (the limit of
+the deterministic string metrics). Specs in `docs/superpowers/specs/`, plans in
+`docs/superpowers/plans/`.
 
 `edition_distance` is the first slice of a general `realize_distance(golden_item,
 platform_candidate)` over **identity + release-class + performance + edition**. Today
