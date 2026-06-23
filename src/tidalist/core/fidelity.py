@@ -26,6 +26,10 @@ W_TITLE     = 10          # title mismatch penalty
 W_YEAR      = 1           # per-year distance from golden's first_released
 W_REISSUE   = 5           # per kind-marker found in option title
 
+# Weight constant for identity facet (ISRC exactness).
+# Must strictly exceed W_MARKER so a single ISRC mismatch dominates all other facets.
+W_IDENTITY = 1_000_000_000  # identity dominates every other facet
+
 # Markers that indicate non-original kind (reissues, expansions, live, etc.)
 _KIND_MARKERS = (
     "reissue", "remaster", "deluxe", "live", "compilation", "expanded", "anniversary"
@@ -132,6 +136,24 @@ def edition_distance(
         total += W_REISSUE * sum(1 for m in _KIND_MARKERS if m in title_lower)
 
     return total
+
+
+@dataclass(frozen=True, slots=True)
+class IdentityFacet:
+    """ISRC exactness facet: penalizes recordings with mismatched ISRCs; albums always score 0."""
+    name: str = "identity"
+    weight: float = 1.0
+
+    def distance(self, golden, cand) -> float:
+        """Return W_IDENTITY if golden is a Recording with ISRC and both ISRCs are present but unequal;
+        otherwise return 0.0 (golden is Album, or either ISRC is missing, or ISRCs match)."""
+        if isinstance(golden, Recording) and golden.isrc is not None and cand.isrc is not None:
+            return 0.0 if golden.isrc == cand.isrc else W_IDENTITY
+        return 0.0
+
+    def compromise(self, golden, cand):
+        """Never emits a compromise."""
+        return None
 
 
 @runtime_checkable

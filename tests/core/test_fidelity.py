@@ -1,7 +1,12 @@
 from dataclasses import dataclass as _dc
 
-from tidalist.core.fidelity import Compromise, PlatformCandidate, realize_distance, choose
+from tidalist.core.fidelity import (
+    Compromise, PlatformCandidate, realize_distance, choose,
+    IdentityFacet, W_IDENTITY, W_MARKER
+)
+from tidalist.core.identifiers import ISRC
 from tidalist.core.recording import Performance, Recording
+from tidalist.core.album import Album
 
 
 @_dc
@@ -62,3 +67,32 @@ def test_platform_candidate_defaults_are_observation_unknowns():
     assert c.release_class is None
     assert c.performance is Performance.UNKNOWN
     assert c.source_kind is None and c.audio_quality is None and c.popularity is None
+
+
+def test_identity_dominates_marker():
+    assert W_IDENTITY > W_MARKER
+
+
+def test_identity_recording_isrc_match_is_zero():
+    g = Recording(artist="Traffic", title="Glad", isrc=ISRC("GB1"))
+    cand = PlatformCandidate(ref="t1", title="Glad", isrc=ISRC("GB1"))
+    assert IdentityFacet().distance(g, cand) == 0.0
+
+
+def test_identity_recording_isrc_mismatch_is_w_identity():
+    g = Recording(artist="Traffic", title="Glad", isrc=ISRC("GB1"))
+    cand = PlatformCandidate(ref="t2", title="Glad", isrc=ISRC("GB2"))
+    assert IdentityFacet().distance(g, cand) == W_IDENTITY
+
+
+def test_identity_recording_unknown_isrc_is_zero():
+    g = Recording(artist="Traffic", title="Glad")          # no isrc
+    cand = PlatformCandidate(ref="t3", title="Glad", isrc=ISRC("GB9"))
+    assert IdentityFacet().distance(g, cand) == 0.0
+
+
+def test_identity_album_is_zero():
+    g = Album(artist="Traffic", title="Mr. Fantasy")
+    cand = PlatformCandidate(ref="A1", title="Mr. Fantasy")
+    assert IdentityFacet().distance(g, cand) == 0.0
+    assert IdentityFacet().compromise(g, cand) is None
