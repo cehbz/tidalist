@@ -59,6 +59,8 @@ def track_from_tidal(t) -> Track:
         album=t.album.name if getattr(t, "album", None) else None,
         year=_year(t),
         duration_s=getattr(t, "duration", None),
+        audio_quality=getattr(t, "audio_quality", None),
+        popularity=getattr(t, "popularity", None),
     )
 
 

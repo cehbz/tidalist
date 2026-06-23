@@ -14,6 +14,8 @@ class Track:
     album: str | None = None
     year: int | None = None
     duration_s: int | None = None
+    audio_quality: str | None = None
+    popularity: int | None = None
 
     def __post_init__(self):
         if self.year is not None and not isinstance(self.year, int):

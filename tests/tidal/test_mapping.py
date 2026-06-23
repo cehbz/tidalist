@@ -51,3 +51,9 @@ def test_missing_isrc_and_dates_are_none():
 def test_single_artist_fallback():
     t = _tidal_track(artists=None, artist=_artist("Traffic"))
     assert track_from_tidal(t).artists == ("Traffic",)
+
+
+def test_track_from_tidal_observes_audio_quality_and_popularity():
+    t = _tidal_track(audio_quality="LOSSLESS", popularity=50)
+    track = track_from_tidal(t)
+    assert track.audio_quality == "LOSSLESS" and track.popularity == 50
