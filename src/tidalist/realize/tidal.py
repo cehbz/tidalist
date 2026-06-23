@@ -12,10 +12,12 @@ from ..core.catalog import Track
 from ..core.realize import PlatformItem, MatchQuality
 from ..core.fidelity import (
     PlatformCandidate, IdentityFacet, EditionFacet, PerformanceFacet, choose,
-    recording_artist_match, Compromise,
+    recording_artist_match, Compromise, QualityPreference,
 )
 from ..core.edition import EditionPreference
 from ..core.album import Album, TrackRef
+
+_QUALITY_PREFERENCE = QualityPreference()
 
 
 class TidalRealizer:
@@ -31,7 +33,8 @@ class TidalRealizer:
         candidates = [_track_candidate(t) for t in hits]
         if not candidates:
             return None, ()
-        chosen, comps = choose(recording, candidates, [IdentityFacet(), PerformanceFacet()])
+        chosen, comps = choose(recording, candidates, [IdentityFacet(), PerformanceFacet()],
+                               tiebreak=lambda c: (_QUALITY_PREFERENCE.tiebreak(c), c.ref))
         if chosen is None:
             return None, ()
         return _item_from_candidate(chosen, _quality_for(recording, chosen)), comps
@@ -168,6 +171,7 @@ def _track_candidate(track: Track) -> PlatformCandidate:
         ref=str(track.id), title=track.title, artists=track.artists,
         isrc=track.isrc, duration_s=track.duration_s,
         performance=_observe_performance(track.title),
+        audio_quality=track.audio_quality, popularity=track.popularity,
     )
 
 

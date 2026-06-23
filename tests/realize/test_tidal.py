@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 from tidalist.core.identifiers import ISRC, TrackId
 from tidalist.core.recording import Recording, Credit
 from tidalist.core.catalog import Track, PlatformAlbum
@@ -87,6 +89,18 @@ def test_resolve_studio_match_reports_no_compromise():
     item, comps = TidalRealizer(FakePlatform([studio])).resolve(rec)
     assert item.ref == "T-studio"
     assert comps == ()    # studio hit, performance unobserved -> no spurious compromise
+
+
+def test_resolve_prefers_hi_res_among_tied_hits():
+    # Two hits, same song/artist/duration (tied identity); pick the hi-res one.
+    # "T-aaa" sorts before "T-hires", so ref-only tiebreak would pick the lossy one.
+    lossy = _track("T-aaa", title="Glad", artists=("Traffic",), duration_s=200)
+    hires = _track("T-hires", title="Glad", artists=("Traffic",), duration_s=200)
+    lossy = replace(lossy, audio_quality="LOW")
+    hires = replace(hires, audio_quality="HI_RES_LOSSLESS")
+    cat = FakePlatform([lossy, hires])
+    item, _ = TidalRealizer(cat).resolve(_rec(duration_s=200))
+    assert item.ref == "T-hires"     # quality beats the lexicographically-smaller "T-aaa"
 
 
 def test_emit_creates_a_playlist_and_adds_the_item_refs():
