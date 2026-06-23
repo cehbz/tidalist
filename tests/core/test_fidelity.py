@@ -140,3 +140,43 @@ def test_edition_facet_no_compromise_when_marker_present():
     pref = EditionPreference(markers=("steven wilson",))
     cand = PlatformCandidate(ref="sw", title="Close to the Edge (Steven Wilson Mix)", year=2013)
     assert EditionFacet(pref).compromise(g, cand) is None
+
+
+# ---------------------------------------------------------------------------
+# PerformanceFacet tests
+# ---------------------------------------------------------------------------
+
+def test_performance_facet_no_op_on_albums():
+    from tidalist.core.fidelity import PerformanceFacet
+    g = Album(artist="Traffic", title="Mr. Fantasy")
+    cand = PlatformCandidate(ref="a", title="Mr. Fantasy")
+    assert PerformanceFacet().distance(g, cand) == 0.0
+    assert PerformanceFacet().compromise(g, cand) is None
+
+
+def test_performance_facet_no_penalty_when_observation_unknown():
+    from tidalist.core.fidelity import PerformanceFacet
+    g = Recording(artist="t", title="Glad", performance=Performance.STUDIO)
+    cand = PlatformCandidate(ref="x", title="Glad")  # performance UNKNOWN
+    assert PerformanceFacet().distance(g, cand) == 0.0
+    assert PerformanceFacet().compromise(g, cand) is None
+
+
+def test_performance_facet_match_is_zero_no_compromise():
+    from tidalist.core.fidelity import PerformanceFacet
+    g = Recording(artist="t", title="Glad", performance=Performance.STUDIO)
+    cand = PlatformCandidate(ref="x", title="Glad", performance=Performance.STUDIO)
+    assert PerformanceFacet().distance(g, cand) == 0.0
+    assert PerformanceFacet().compromise(g, cand) is None
+
+
+def test_performance_facet_mismatch_penalizes_and_reports():
+    from tidalist.core.fidelity import PerformanceFacet, W_PERFORMANCE
+    g = Recording(artist="t", title="Glad", performance=Performance.STUDIO)
+    cand = PlatformCandidate(ref="x", title="Glad (Live)", performance=Performance.LIVE)
+    assert PerformanceFacet().distance(g, cand) == W_PERFORMANCE
+    comp = PerformanceFacet().compromise(g, cand)
+    assert comp is not None
+    assert comp.facet == "performance"
+    assert comp.desired == "studio" and comp.used == "live"
+    assert comp.note == "studio take unavailable; used a live version"

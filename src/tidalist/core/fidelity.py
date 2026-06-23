@@ -30,6 +30,9 @@ W_REISSUE   = 5           # per kind-marker found in option title
 # Must strictly exceed W_MARKER so a single ISRC mismatch dominates all other facets.
 W_IDENTITY = 1_000_000_000  # identity dominates every other facet
 
+# Weight constant for performance facet (studio/live mismatch).
+W_PERFORMANCE = 100   # studio/live mismatch penalty for recordings
+
 # Markers that indicate non-original kind (reissues, expansions, live, etc.)
 _KIND_MARKERS = (
     "reissue", "remaster", "deluxe", "live", "compilation", "expanded", "anniversary"
@@ -180,6 +183,33 @@ class IdentityFacet:
     def compromise(self, golden, cand):
         """Never emits a compromise."""
         return None
+
+
+@dataclass(frozen=True, slots=True)
+class PerformanceFacet:
+    """Penalizes a recording whose observed performance differs from the golden's
+    desired performance, and reports it. No-ops on albums and when either performance
+    is UNKNOWN (unobserved ⇒ best-effort, no penalty)."""
+    name: str = "performance"
+    weight: float = 1.0
+
+    def distance(self, golden, cand) -> float:
+        if not isinstance(golden, Recording):
+            return 0.0
+        if golden.performance is Performance.UNKNOWN or cand.performance is Performance.UNKNOWN:
+            return 0.0
+        return 0.0 if cand.performance == golden.performance else W_PERFORMANCE
+
+    def compromise(self, golden, cand):
+        if not isinstance(golden, Recording):
+            return None
+        if golden.performance is Performance.UNKNOWN or cand.performance is Performance.UNKNOWN:
+            return None
+        if cand.performance == golden.performance:
+            return None
+        return Compromise("performance", golden.performance.value, cand.performance.value,
+                          f"{golden.performance.value} take unavailable; "
+                          f"used a {cand.performance.value} version")
 
 
 @runtime_checkable
