@@ -6,8 +6,8 @@ phase status live in `docs/superpowers/plans/2026-06-20-tidalist-architecture.md
 ## Open
 
 ### Uniform best-effort realize across all fidelity axes (the big next design)
-**Status (2026-06-23):** Slices 1–3 landed (stacked branches `uniform-realize-slice-1` →
-`-slice-2` → `-slice-3`; not merged to main). Slice 1: the uniform `realize_distance` /
+**Status (2026-06-23):** Slices 1–4 landed (stacked branches `uniform-realize-slice-1` →
+`-slice-2` → `-slice-3` → `-slice-4`; not merged to main). Slice 1: the uniform `realize_distance` /
 `Facet` / `choose` / `PlatformCandidate` / typed-`Compromise` framework (`core/fidelity.py`) +
 `IdentityFacet` + `EditionFacet`, edition selection migrated onto it — behavior-preserving
 (Mr. Fantasy → 10-track; offline + live edition proof green). Slice 2: `PerformanceFacet` + a
@@ -18,12 +18,17 @@ and `resolve` reports a typed compromise instead of silently substituting a live
 assembles the canonical tracklist track-by-track from individual catalog tracks and reports an
 `album-source` compromise (counts + missing positions) instead of gapping. Proven live: Trout
 Mask Replica assembles 28/28 from compilations. Also fixed `TidalPlatform.track_by_isrc` to
-return `None` (not raise) for an ISRC absent from the catalog. Offline 323 green. **Outstanding:**
-a live no-silent-substitution confirmation (slice 2) is still deferred (no stable fixture).
-Remaining: slice 4 (quality-preference `AudioFacet`, superseding `choose`'s `ref` tiebreak;
-also the home for the deferred `ReleaseClassFacet` + per-track source-release attribution).
-Longer-term: a cheap/local-LLM judge for context-dependent title/identity matching (the limit of
-the deterministic string metrics). Specs in `docs/superpowers/specs/`, plans in
+return `None` (not raise) for an ISRC absent from the catalog. Slice 4: a specifiable
+**audio-quality tiebreak** — `choose`'s secondary sort key is now quality-aware
+(`QualityPreference`: hi-res > lossy, then popularity), a *lexicographic* tiebreak below every
+fidelity facet with `ref` as the final backstop (no summed "AudioFacet" — that would be
+magnitude-fragile); `Track` carries observed `audio_quality` + `popularity`. Offline 331 green.
+**Outstanding:** a live no-silent-substitution confirmation (slice 2) is still deferred (no stable
+fixture). **Remaining (the arc's open tail — all need a rich-metadata backend or are out of
+deterministic reach):** `source_kind` (original > comp) + `ReleaseClassFacet` + per-track
+source-release attribution; the album-edition quality tiebreak (`PlatformAlbum` carrying quality);
+and a cheap/local-LLM judge for context-dependent title/identity matching (the limit of the
+deterministic string metrics). Specs in `docs/superpowers/specs/`, plans in
 `docs/superpowers/plans/`.
 
 `edition_distance` is the first slice of a general `realize_distance(golden_item,
