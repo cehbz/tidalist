@@ -1,6 +1,9 @@
 from datetime import datetime
 from types import SimpleNamespace
 
+import pytest
+from tidalapi.exceptions import ObjectNotFound
+
 from tidalist.tidal.platform import TidalPlatform
 from tidalist.core.catalog import PlatformAlbum
 
@@ -116,6 +119,25 @@ def test_track_by_isrc_returns_first_hit_mapped():
 
 def test_track_by_isrc_none_when_no_hit():
     assert TidalPlatform(_FakeSession()).track_by_isrc("ZZ") is None
+
+
+def test_track_by_isrc_none_when_object_not_found():
+    """tidalapi raises ObjectNotFound for an ISRC not in the catalog; must return None."""
+    class _RaisingSession:
+        def get_tracks_by_isrc(self, isrc):
+            raise ObjectNotFound("not in catalog")
+
+    assert TidalPlatform(_RaisingSession()).track_by_isrc("USRE10201236") is None
+
+
+def test_track_by_isrc_propagates_other_errors():
+    """Only ObjectNotFound is swallowed; real errors (network/auth) propagate."""
+    class _RaisingSession:
+        def get_tracks_by_isrc(self, isrc):
+            raise RuntimeError("network down")
+
+    with pytest.raises(RuntimeError):
+        TidalPlatform(_RaisingSession()).track_by_isrc("USRE10201236")
 
 
 def test_create_playlist_returns_id():

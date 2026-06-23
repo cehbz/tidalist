@@ -3,6 +3,7 @@
 from datetime import datetime
 
 import tidalapi
+from tidalapi.exceptions import ObjectNotFound
 
 from ..core.identifiers import ISRC, TrackId, PlaylistId
 from ..core.catalog import Track, PlatformAlbum
@@ -19,7 +20,11 @@ class TidalPlatform:
         return [track_from_tidal(t) for t in results["tracks"][:limit]]
 
     def track_by_isrc(self, isrc: ISRC) -> Track | None:
-        hits = self._session.get_tracks_by_isrc(isrc)
+        try:
+            hits = self._session.get_tracks_by_isrc(isrc)
+        except ObjectNotFound:
+            # tidalapi raises ObjectNotFound when the ISRC is not in the catalog.
+            return None
         return track_from_tidal(hits[0]) if hits else None
 
     def create_playlist(self, name: str, description: str = "") -> PlaylistId:
