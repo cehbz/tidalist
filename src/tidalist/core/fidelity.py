@@ -3,6 +3,7 @@ platform candidate. realize_distance sums the applicable facets; choose is the a
 Edition is the first facet ported here; identity/release-class/performance/quality follow.
 """
 
+import re
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
@@ -30,7 +31,7 @@ W_REISSUE   = 5           # per kind-marker found in option title
 # title/artist dominate W_PERFORMANCE (100); duration is the finest tiebreak.
 W_FUZZY_TITLE  = 1000
 W_FUZZY_ARTIST = 1000
-W_FUZZY_DUR    = 1
+W_FUZZY_DUR    = 50   # weight at full (ratio=1) duration mismatch; bounded below W_PERFORMANCE
 
 # Weight constant for performance facet (studio/live mismatch).
 W_PERFORMANCE = 100   # studio/live mismatch penalty for recordings
@@ -52,6 +53,19 @@ def recording_artist_match(recording: "Recording", artists: tuple[str, ...]) -> 
     performers.add(_norm(recording.artist))
     return any(p and any(p in _norm(a) or _norm(a) in p for a in artists)
                for p in performers)
+
+
+def _title_tokens(s: str) -> frozenset[str]:
+    """Word tokens of a title, lowercased, punctuation dropped."""
+    return frozenset(re.findall(r"\w+", s.casefold()))
+
+
+def _jaccard_distance(a: frozenset[str], b: frozenset[str]) -> float:
+    """Token-set distance 1 - |a∩b|/|a∪b|, in [0,1]; 0 when both empty."""
+    union = a | b
+    if not union:
+        return 0.0
+    return 1.0 - len(a & b) / len(union)
 
 
 @dataclass(frozen=True, slots=True)
@@ -194,13 +208,14 @@ class IdentityFacet:
         # Exact ISRC is a positive identity signal.
         if golden.isrc is not None and cand.isrc is not None and golden.isrc == cand.isrc:
             return 0.0
-        # Otherwise fuzzy closeness: title / artist / duration.
+        # Otherwise fuzzy closeness: graded title (token-set Jaccard) + artist + relative duration.
         d = 0.0
-        if _norm(golden.title) != _norm(cand.title):
-            d += W_FUZZY_TITLE
+        d += W_FUZZY_TITLE * _jaccard_distance(_title_tokens(golden.title),
+                                               _title_tokens(cand.title))
         if not recording_artist_match(golden, cand.artists):
             d += W_FUZZY_ARTIST
-        d += W_FUZZY_DUR * abs((golden.duration_s or 0) - (cand.duration_s or 0))
+        if golden.duration_s and cand.duration_s:
+            d += W_FUZZY_DUR * abs(golden.duration_s - cand.duration_s) / max(golden.duration_s, cand.duration_s)
         return d
 
     def compromise(self, golden, cand):

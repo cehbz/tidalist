@@ -1,8 +1,10 @@
 from dataclasses import dataclass as _dc
 
+import pytest
+
 from tidalist.core.fidelity import (
     Compromise, PlatformCandidate, realize_distance, choose,
-    IdentityFacet, W_FUZZY_TITLE, W_FUZZY_ARTIST, W_FUZZY_DUR,
+    IdentityFacet, W_FUZZY_TITLE, W_FUZZY_ARTIST, W_FUZZY_DUR, W_PERFORMANCE,
     EditionFacet, edition_distance,
 )
 from tidalist.core.edition import EditionPreference
@@ -97,10 +99,12 @@ def test_identity_recording_fuzzy_full_match_is_zero():
     assert IdentityFacet().distance(g, cand) == 0.0
 
 
-def test_identity_recording_title_mismatch_adds_fuzzy_title():
+def test_identity_recording_title_partial_overlap_grades_title():
+    # {glad} vs {glad,rag,doll}: Jaccard distance = 1 - 1/3 = 2/3 (graded, not the full penalty).
     g = Recording(artist="Traffic", title="Glad", duration_s=200)
     cand = PlatformCandidate(ref="x", title="Glad Rag Doll", artists=("Traffic",), duration_s=200)
-    assert IdentityFacet().distance(g, cand) == W_FUZZY_TITLE
+    assert IdentityFacet().distance(g, cand) == pytest.approx(W_FUZZY_TITLE * 2 / 3)
+    assert IdentityFacet().distance(g, cand) < W_FUZZY_TITLE   # graded, below the full penalty
 
 
 def test_identity_recording_artist_mismatch_adds_fuzzy_artist():
@@ -109,10 +113,24 @@ def test_identity_recording_artist_mismatch_adds_fuzzy_artist():
     assert IdentityFacet().distance(g, cand) == W_FUZZY_ARTIST
 
 
-def test_identity_recording_duration_delta_adds_fuzzy_dur():
+def test_identity_recording_duration_ratio_grades_duration():
+    # exact title+artist; only the relative duration term: W_FUZZY_DUR * 6/386.
     g = Recording(artist="Traffic", title="Glad", duration_s=386)
     cand = PlatformCandidate(ref="x", title="Glad", artists=("Traffic",), duration_s=380)
-    assert IdentityFacet().distance(g, cand) == W_FUZZY_DUR * 6
+    assert IdentityFacet().distance(g, cand) == pytest.approx(W_FUZZY_DUR * 6 / 386)
+
+
+def test_identity_missing_candidate_duration_no_penalty():
+    g = Recording(artist="Traffic", title="Glad", duration_s=200)
+    cand = PlatformCandidate(ref="x", title="Glad", artists=("Traffic",))  # no duration observed
+    assert IdentityFacet().distance(g, cand) == 0.0   # title 0, artist 0, duration skipped
+
+
+def test_identity_duration_term_stays_below_performance_tier():
+    # Even a huge duration gap is a bounded sub-performance tiebreak (ratio<1 * W_FUZZY_DUR < W_PERFORMANCE).
+    g = Recording(artist="Traffic", title="Glad", duration_s=10)
+    cand = PlatformCandidate(ref="x", title="Glad", artists=("Traffic",), duration_s=10000)
+    assert IdentityFacet().distance(g, cand) < W_PERFORMANCE
 
 
 def test_identity_album_is_zero():

@@ -67,6 +67,28 @@ def test_resolve_substitutes_a_live_take_and_reports_the_compromise():
     assert comps[0].note == "studio take unavailable; used a live version"
 
 
+def test_resolve_prefers_right_song_live_over_wrong_song_studio():
+    from tidalist.core.recording import Performance
+    rec = Recording(artist="Traffic", title="Glad", performance=Performance.STUDIO,
+                    credits=(Credit("Traffic", "performer"),), duration_s=200)
+    live = _track("T-live", title="Glad (Live)", artists=("Traffic",), duration_s=200)
+    wrong = _track("T-wrong", title="Glad Rag Doll", artists=("Traffic",), duration_s=200)
+    cat = FakePlatform([wrong, live])
+    item, comps = TidalRealizer(cat).resolve(rec)
+    assert item.ref == "T-live"                       # right song wins over wrong-song studio
+    assert any(c.facet == "performance" for c in comps)   # and the live substitution is reported
+
+
+def test_resolve_studio_match_reports_no_compromise():
+    from tidalist.core.recording import Performance
+    rec = Recording(artist="Traffic", title="Glad", performance=Performance.STUDIO,
+                    credits=(Credit("Traffic", "performer"),), duration_s=200)
+    studio = _track("T-studio", title="Glad", artists=("Traffic",), duration_s=200)
+    item, comps = TidalRealizer(FakePlatform([studio])).resolve(rec)
+    assert item.ref == "T-studio"
+    assert comps == ()    # studio hit, performance unobserved -> no spurious compromise
+
+
 def test_emit_creates_a_playlist_and_adds_the_item_refs():
     cat = FakePlatform([])
     items = [PlatformItem(ref="T1", title="Glad", artists=("Traffic",)),
