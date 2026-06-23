@@ -103,15 +103,17 @@ def test_format_realization_shows_compromise_note():
     from tidalist.core.golden import GoldenEntry
     from tidalist.core.provenance import Provenance
     from tidalist.core.criteria import Verdict
+    from tidalist.core.fidelity import Compromise
 
     t1 = PlatformItem(ref="t1", title="Glad", artists=("Traffic",))
     album = Album(artist="Traffic", title="John Barleycorn Must Die")
     golden_entry = GoldenEntry(album, Provenance("nl"), Verdict.ok())
+    comp = Compromise("edition", "steven wilson", "(none)", "preferred edition unavailable")
     r = Realization("Traffic Albums", (
-        RealizedEntry(golden_entry, items=(t1,), compromise="preferred edition unavailable"),
+        RealizedEntry(golden_entry, items=(t1,), compromises=(comp,)),
     ))
     text = cli.format_realization(r)
-    assert "edition compromise" in text
+    assert "compromise" in text
     assert "preferred edition unavailable" in text
 
 

@@ -77,7 +77,7 @@ class FakeMetadataProvider:
 class FakeRealizer:
     """Realizer port fake: resolves by recording title (missing => gap); records emits.
 
-    `albums` maps album title → ([PlatformItem, ...], compromise | None).
+    `albums` maps album title → ([PlatformItem, ...], tuple[Compromise, ...]).
     """
 
     def __init__(self, items: dict, albums: dict | None = None):
@@ -92,7 +92,7 @@ class FakeRealizer:
         key = album.title.casefold()
         if key in self._albums:
             return self._albums[key]
-        return [], None
+        return [], ()
 
     def emit(self, name: str, items: list) -> str:
         ref = f"playlist-{len(self.emitted) + 1}"

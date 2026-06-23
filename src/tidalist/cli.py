@@ -46,13 +46,13 @@ def format_realization(realization: Realization) -> str:
         elif len(e.items) == 1:
             item = e.items[0]
             line = f"  ✓ {r.artist} — {r.title} → {item.ref}  [{item.quality.value}]"
-            if e.compromise:
-                line += f"  [edition compromise: {e.compromise}]"
+            if e.compromises:
+                line += "  [compromise: " + "; ".join(c.note for c in e.compromises) + "]"
             lines.append(line)
         else:
             line = f"  ✓ {r.artist} — {r.title} → {len(e.items)} tracks"
-            if e.compromise:
-                line += f"  [edition compromise: {e.compromise}]"
+            if e.compromises:
+                line += "  [compromise: " + "; ".join(c.note for c in e.compromises) + "]"
             lines.append(line)
     return "\n".join(lines)
 
