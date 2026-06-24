@@ -18,6 +18,11 @@ class AppConfig:
     def session_file(self) -> Path:
         return self.config_dir / "tidal_session.json"
 
+    @property
+    def mb_cache_dir(self) -> Path:
+        """On-disk store for the MusicBrainz request cache (resumable curate backstop)."""
+        return default_cache_path() / "mb"
+
     @classmethod
     def load(cls, path: Path | None = None) -> "AppConfig":
         path = path or default_config_path()
@@ -38,3 +43,9 @@ def default_config_path() -> Path:
     base = os.environ.get("XDG_CONFIG_HOME")
     base = Path(base) if base else Path.home() / ".config"
     return base / "tidalist" / "config.yaml"
+
+
+def default_cache_path() -> Path:
+    base = os.environ.get("XDG_CACHE_HOME")
+    base = Path(base) if base else Path.home() / ".cache"
+    return base / "tidalist"

@@ -89,8 +89,11 @@ def publish_golden(golden_data: dict, realizer) -> str:
 def build_metadata(config: AppConfig):
     import musicbrainzngs
     from .metadata.musicbrainz import MusicBrainzMetadata
+    from .metadata.cache import CachingMusicBrainz
     musicbrainzngs.set_useragent("tidalist", "1.0", config.musicbrainz_contact or "tidalist")
-    return MusicBrainzMetadata(musicbrainzngs)
+    # Persistent read-through cache: makes the slow 1-req/s curate resumable and dedups
+    # queries that recur across candidates (a performer on several picks).
+    return MusicBrainzMetadata(CachingMusicBrainz(musicbrainzngs, config.mb_cache_dir))
 
 
 def build_realizer(config: AppConfig):
