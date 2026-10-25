@@ -33,7 +33,10 @@ class TidalRenderer:
             if track is not None:
                 return _item(track, MatchQuality.ISRC), ()
         hits = self._platform.search_tracks(_query(recording))
-        candidates = [_track_candidate(t) for t in hits]
+        # Track search returns plausible hits by other artists (covers, title
+        # collisions); another artist's take is a different identity, so a gap.
+        candidates = [_track_candidate(t) for t in hits
+                      if recording_artist_match(recording, t.artists)]
         if not candidates:
             return None, ()
         chosen, comps = choose(recording, candidates, [IdentityFacet(), PerformanceFacet()],

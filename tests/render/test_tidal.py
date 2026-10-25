@@ -55,6 +55,28 @@ def test_resolve_marks_a_title_mismatch_weak():
     assert item.ref == "T-x" and item.quality is MatchQuality.WEAK
 
 
+class _FuzzyPlatform(FakePlatform):
+    """Tidal track search returns plausible hits whatever the query words."""
+
+    def search_tracks(self, query: str, limit: int = 25) -> list[Track]:
+        self.calls.append(("search_tracks", (query, limit)))
+        return self._tracks[:limit]
+
+
+def test_resolve_gaps_when_only_other_artists_match():
+    # Blawan's original is absent; title search finds only a cover by another artist.
+    cover = _track("T-cover", title="Glad", artists=("Gilla Band",))
+    item, comps = TidalRenderer(_FuzzyPlatform([cover])).resolve(_rec())
+    assert item is None and comps == ()
+
+
+def test_resolve_prefers_a_weak_same_artist_hit_over_a_closer_other_artist():
+    cover = _track("T-cover", title="Glad", artists=("Gilla Band",))
+    own = _track("T-own", title="Glad (feat. Someone)", artists=("Traffic",))
+    item, _ = TidalRenderer(_FuzzyPlatform([cover, own])).resolve(_rec())
+    assert item.ref == "T-own"
+
+
 def test_resolve_substitutes_a_live_take_and_reports_the_compromise():
     from tidalist.core.recording import Performance
     rec = Recording(artist="Traffic", title="Dear Mr. Fantasy",
